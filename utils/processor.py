@@ -38,12 +38,10 @@ def get_best_epoch_and_loss(path_to_model_files):
     if len(all_models) < 2:
         return '', None, np.inf
     loss_list = -1. * np.ones(len(all_models))
-    acc_list = -1. * np.ones(len(all_models))
     for i, model in enumerate(all_models):
-        loss_acc_val = str.split(model, '_')
-        if len(loss_acc_val) > 1:
-            loss_list[i] = float(loss_acc_val[3])
-            acc_list[i] = float(loss_acc_val[5])
+        loss_val = str.split(model, '_')
+        if len(loss_val) > 1:
+            loss_list[i] = float(loss_val[3])
     if len(loss_list) < 3:
         best_model = all_models[np.argwhere(loss_list == min([n for n in loss_list if n > 0]))[0, 0]]
     else:
@@ -151,7 +149,6 @@ class Processor(object):
         self.mean_ap_updated = False
         self.step_epochs = [math.ceil(float(self.args.num_epoch * x)) for x in self.args.step]
         self.best_loss_epoch = None
-        self.best_acc_epoch = None
         self.min_train_epochs = min_train_epochs
         self.zfill = fill
         try:

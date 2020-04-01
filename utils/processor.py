@@ -141,9 +141,8 @@ class Processor(object):
         # self.quats_sos = torch.from_numpy(Quaternions.id(self.V).qs).unsqueeze(0)
         # self.quats_eos = torch.from_numpy(Quaternions.from_euler(
         #     np.tile([np.pi / 2., 0, 0], (self.V, 1))).qs).unsqueeze(0)
-        self.o_rs_loss_func = nn.L1Loss()
+        self.recons_loss_func = nn.L1Loss()
         self.affs_loss_func = nn.L1Loss()
-        self.spline_loss_func = nn.L1Loss()
         self.best_loss = np.inf
         self.loss_updated = False
         self.step_epochs = [math.ceil(float(self.args.num_epoch * x)) for x in self.args.step]
@@ -287,8 +286,11 @@ class Processor(object):
 
                 batch_joint_offsets[i] = joint_offsets
                 batch_pos[i, :pos.shape[0]] = pos
+                batch_pos[i, pos.shape[0]:] = pos[-1:].clone()
                 batch_affs[i, :affs.shape[0]] = affs
+                batch_affs[i, affs.shape[0]:] = affs[-1:].clone()
                 batch_quat[i, :quat_length] = quat.view(quat_length, -1)
+                batch_quat[i, quat_length:] = quat[-1:].view(1, -1).clone()
                 batch_quat_valid_idx[i] = quat_valid_idx
                 batch_text[i, :text_length] = text
                 batch_text_valid_idx[i] = text_valid_idx
@@ -382,29 +384,33 @@ class Processor(object):
                     torch.cat((root_pos[:, 0:1], joint_offsets), dim=1).unsqueeze(1))
                 affs_pred = MocapDataset.get_mpi_affective_features(pos_pred)
 
-                row_sums = quat_valid_idx.sum(1, keepdim=True) * self.D * self.V
-                row_sums[row_sums == 0.] = 1.
+                # row_sums = quat_valid_idx.sum(1, keepdim=True) * self.D * self.V
+                # row_sums[row_sums == 0.] = 1.
 
                 shifted_pos = pos - pos[:, :, 0:1]
                 shifted_pos_pred = pos_pred - pos_pred[:, :, 0:1]
-                recons_loss = torch.abs(shifted_pos_pred - shifted_pos[:, 1:]).sum(-1)
-                recons_loss = self.args.upper_body_weight * (recons_loss[:, :, :self.lower_body_start].sum(-1)) +\
-                              recons_loss[:, :, self.lower_body_start:].sum(-1)
-                recons_loss = self.args.recons_reg *\
-                              torch.mean((recons_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
 
-                recons_derv_loss = torch.abs(shifted_pos_pred[:, 1:] - shifted_pos_pred[:, :-1] -
-                                             shifted_pos[:, 2:] + shifted_pos[:, 1:-1]).sum(-1)
-                recons_derv_loss = self.args.upper_body_weight *\
-                    (recons_derv_loss[:, :, :self.lower_body_start].sum(-1)) +\
-                                   recons_derv_loss[:, :, self.lower_body_start:].sum(-1)
-                recons_derv_loss = 2. * self.args.recons_reg *\
-                                   torch.mean((recons_derv_loss * quat_valid_idx[:, 2:]).sum(-1) / row_sums)
+                recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos[:, 1:])
+                # recons_loss = torch.abs(shifted_pos_pred - shifted_pos[:, 1:]).sum(-1)
+                # recons_loss = self.args.upper_body_weight * (recons_loss[:, :, :self.lower_body_start].sum(-1)) +\
+                #               recons_loss[:, :, self.lower_body_start:].sum(-1)
+                # recons_loss = self.args.recons_reg *\
+                #               torch.mean((recons_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
+                #
+                # recons_derv_loss = torch.abs(shifted_pos_pred[:, 1:] - shifted_pos_pred[:, :-1] -
+                #                              shifted_pos[:, 2:] + shifted_pos[:, 1:-1]).sum(-1)
+                # recons_derv_loss = self.args.upper_body_weight *\
+                #     (recons_derv_loss[:, :, :self.lower_body_start].sum(-1)) +\
+                #                    recons_derv_loss[:, :, self.lower_body_start:].sum(-1)
+                # recons_derv_loss = 2. * self.args.recons_reg *\
+                #                    torch.mean((recons_derv_loss * quat_valid_idx[:, 2:]).sum(-1) / row_sums)
+                #
+                # affs_loss = torch.abs(affs[:, 1:] - affs_pred).sum(-1)
+                # affs_loss = self.args.affs_reg * torch.mean((affs_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
+                affs_loss = self.affs_loss_func(affs_pred, affs[:, 1:])
 
-                affs_loss = torch.abs(affs[:, 1:] - affs_pred).sum(-1)
-                affs_loss = self.args.affs_reg * torch.mean((affs_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
-
-                train_loss = quat_norm_loss + quat_loss + recons_loss + recons_derv_loss + affs_loss
+                train_loss = quat_norm_loss + quat_loss + recons_loss + affs_loss
+                # train_loss = quat_norm_loss + quat_loss + recons_loss + recons_derv_loss + affs_loss
                 train_loss.backward()
                 # nn.utils.clip_grad_norm_(self.model.parameters(), self.args.gradient_clip)
                 self.optimizer.step()
@@ -500,24 +506,28 @@ class Processor(object):
 
                 shifted_pos = pos - pos[:, :, 0:1]
                 shifted_pos_pred = pos_pred - pos_pred[:, :, 0:1]
-                recons_loss = torch.abs(shifted_pos_pred[:, 1:] - shifted_pos[:, 1:]).sum(-1)
-                recons_loss = self.args.upper_body_weight * (recons_loss[:, :, :self.lower_body_start].sum(-1)) + \
-                              recons_loss[:, :, self.lower_body_start:].sum(-1)
-                recons_loss = self.args.recons_reg * torch.mean(
-                    (recons_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
 
-                recons_derv_loss = torch.abs(shifted_pos_pred[:, 2:] - shifted_pos_pred[:, 1:-1] -
-                                             shifted_pos[:, 2:] + shifted_pos[:, 1:-1]).sum(-1)
-                recons_derv_loss = self.args.upper_body_weight * \
-                                   (recons_derv_loss[:, :, :self.lower_body_start].sum(-1)) + \
-                                   recons_derv_loss[:, :, self.lower_body_start:].sum(-1)
-                recons_derv_loss = 2. * self.args.recons_reg * \
-                                   torch.mean((recons_derv_loss * quat_valid_idx[:, 2:]).sum(-1) / row_sums)
+                recons_loss = self.recons_loss_func(shifted_pos_pred[:, 1:], shifted_pos[:, 1:])
+                # recons_loss = torch.abs(shifted_pos_pred[:, 1:] - shifted_pos[:, 1:]).sum(-1)
+                # recons_loss = self.args.upper_body_weight * (recons_loss[:, :, :self.lower_body_start].sum(-1)) + \
+                #               recons_loss[:, :, self.lower_body_start:].sum(-1)
+                # recons_loss = self.args.recons_reg * torch.mean(
+                #     (recons_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
+                #
+                # recons_derv_loss = torch.abs(shifted_pos_pred[:, 2:] - shifted_pos_pred[:, 1:-1] -
+                #                              shifted_pos[:, 2:] + shifted_pos[:, 1:-1]).sum(-1)
+                # recons_derv_loss = self.args.upper_body_weight * \
+                #                    (recons_derv_loss[:, :, :self.lower_body_start].sum(-1)) + \
+                #                    recons_derv_loss[:, :, self.lower_body_start:].sum(-1)
+                # recons_derv_loss = 2. * self.args.recons_reg * \
+                #                    torch.mean((recons_derv_loss * quat_valid_idx[:, 2:]).sum(-1) / row_sums)
+                #
+                # affs_loss = torch.abs(affs[:, 1:] - affs_pred[:, 1:]).sum(-1)
+                # affs_loss = self.args.affs_reg * torch.mean((affs_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
+                affs_loss = self.affs_loss_func(affs_pred[:, 1:], affs[:, 1:])
 
-                affs_loss = torch.abs(affs[:, 1:] - affs_pred[:, 1:]).sum(-1)
-                affs_loss = self.args.affs_reg * torch.mean((affs_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
-
-                eval_loss += quat_norm_loss + quat_loss + recons_loss + recons_derv_loss + affs_loss
+                eval_loss += quat_norm_loss + quat_loss + recons_loss + affs_loss
+                # eval_loss += quat_norm_loss + quat_loss + recons_loss + recons_derv_loss + affs_loss
                 N += quat.shape[0]
 
         eval_loss /= N

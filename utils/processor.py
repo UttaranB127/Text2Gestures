@@ -146,7 +146,6 @@ class Processor(object):
         self.spline_loss_func = nn.L1Loss()
         self.best_loss = np.inf
         self.loss_updated = False
-        self.mean_ap_updated = False
         self.step_epochs = [math.ceil(float(self.args.num_epoch * x)) for x in self.args.step]
         self.best_loss_epoch = None
         self.min_train_epochs = min_train_epochs

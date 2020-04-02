@@ -166,7 +166,7 @@ class Processor(object):
         num_layers = 2  # the number of nn.TransformerEncoderLayer in nn.TransformerEncoder
         num_heads = 2  # the number of heads in the multiheadattention models
         dropout = 0.2  # the dropout value
-        self.model = T2GNet(num_tokens, self.Z, self.V * self.D, self.D, self.V - 1,
+        self.model = T2GNet(num_tokens, self.T - 1, self.Z, self.V * self.D, self.D, self.V - 1,
                             num_heads, num_hidden_units, num_layers, dropout).to(device)
 
         # generate

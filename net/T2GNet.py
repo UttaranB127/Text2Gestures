@@ -33,8 +33,8 @@ class PositionalEncoding(nn.Module):
 
 class T2GNet(nn.Module):
 
-    def __init__(self, num_tokens, text_dim, quat_dim, quat_channels, offsets_dim,
-                 num_heads, num_hidden_units, num_layers, dropout=0.5):
+    def __init__(self, num_tokens, max_time_steps, text_dim, quat_dim, quat_channels,
+                 offsets_dim, num_heads, num_hidden_units, num_layers, dropout=0.5):
         super(T2GNet, self).__init__()
         self.text_dim = text_dim
         self.quat_channels = quat_channels
@@ -51,6 +51,10 @@ class T2GNet(nn.Module):
         self.quat_pos_encoder = PositionalEncoding(quat_dim, dropout)
         decoder_layers = TransformerDecoderLayer(quat_dim, num_heads, num_hidden_units, dropout)
         self.transformer_decoder = TransformerDecoder(decoder_layers, num_layers)
+        self.temporal_smoothing = nn.ModuleList((
+            nn.Conv1d(max_time_steps, max_time_steps, 3, padding=1),
+            nn.Conv1d(max_time_steps, max_time_steps, 3, padding=1)
+        ))
         self.decoder = nn.Linear(text_dim, num_tokens)
 
         self.init_weights()
@@ -180,7 +184,9 @@ class T2GNet(nn.Module):
 
         quat_pos_enc = self.quat_pos_encoder(quat)
         quat_pred_pre_norm = self.transformer_decoder(quat_pos_enc.permute(1, 0, 2),
-                                                      gestures_latent, tgt_mask=self.quat_mask)
+                                                      gestures_latent, tgt_mask=self.quat_mask).permute(1, 0, 2)
+        for smoothing_layer in self.temporal_smoothing:
+            quat_pred_pre_norm = smoothing_layer(quat_pred_pre_norm)
         quat_pred = quat_pred_pre_norm.contiguous().view(-1, self.quat_channels)
         quat_pred = F.normalize(quat_pred, dim=1).view(quat_pred_pre_norm.shape)
-        return quat_pred.permute(1, 0, 2), quat_pred_pre_norm.permute(1, 0, 2)
+        return quat_pred, quat_pred_pre_norm

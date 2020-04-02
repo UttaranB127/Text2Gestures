@@ -36,6 +36,7 @@ class T2GNet(nn.Module):
     def __init__(self, num_tokens, max_time_steps, text_dim, quat_dim, quat_channels,
                  offsets_dim, num_heads, num_hidden_units, num_layers, dropout=0.5):
         super(T2GNet, self).__init__()
+        self.T = max_time_steps
         self.text_dim = text_dim
         self.quat_channels = quat_channels
         self.text_mask = None
@@ -185,8 +186,9 @@ class T2GNet(nn.Module):
         quat_pos_enc = self.quat_pos_encoder(quat)
         quat_pred_pre_norm = self.transformer_decoder(quat_pos_enc.permute(1, 0, 2),
                                                       gestures_latent, tgt_mask=self.quat_mask).permute(1, 0, 2)
-        for smoothing_layer in self.temporal_smoothing:
-            quat_pred_pre_norm = smoothing_layer(quat_pred_pre_norm)
+        if quat_pred_pre_norm.shape[1] == self.T:
+            for smoothing_layer in self.temporal_smoothing:
+                quat_pred_pre_norm = smoothing_layer(quat_pred_pre_norm)
         quat_pred = quat_pred_pre_norm.contiguous().view(-1, self.quat_channels)
         quat_pred = F.normalize(quat_pred, dim=1).view(quat_pred_pre_norm.shape)
         return quat_pred, quat_pred_pre_norm

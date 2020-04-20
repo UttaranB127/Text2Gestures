@@ -23,7 +23,7 @@ parser = argparse.ArgumentParser(description='Gait Gen')
 parser.add_argument('--dataset', type=str, default='mpi', metavar='D',
                     help='dataset to train or evaluate method (default: mpi)')
 parser.add_argument('--frame-drop', type=int, default=2, metavar='FD',
-                    help='frame down-sample rate (default: 4)')
+                    help='frame down-sample rate (default: 2)')
 parser.add_argument('--add-mirrored', type=bool, default=False, metavar='AM',
                     help='perform data augmentation by mirroring all the sequences (default: False)')
 parser.add_argument('--train', type=bool, default=True, metavar='T',
@@ -46,8 +46,6 @@ parser.add_argument('--base-tr', type=float, default=1., metavar='TR',
                     help='base teacher rate (default: 1.0)')
 parser.add_argument('--step', type=list, default=0.05 * np.arange(20), metavar='[S]',
                     help='fraction of steps when learning rate will be decreased (default: [0.5, 0.75, 0.875])')
-parser.add_argument('--upper-body-weight', type=float, default=2.05, metavar='UBW',
-                    help='loss weight on the upper body joint motions (default: 2.05)')
 parser.add_argument('--lr-decay', type=float, default=0.999, metavar='LRD',
                     help='learning rate decay (default: 0.999)')
 parser.add_argument('--tf-decay', type=float, default=0.995, metavar='TFD',
@@ -60,13 +58,15 @@ parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
                     help='momentum (default: 0.9)')
 parser.add_argument('--weight-decay', type=float, default=5e-4, metavar='D',
                     help='Weight decay (default: 5e-4)')
-parser.add_argument('--affs-reg', type=float, default=1.2, metavar='AR',
+parser.add_argument('--upper-body-weight', type=float, default=1.2, metavar='UBW',
+                    help='loss weight on the upper body joint motions (default: 2.05)')
+parser.add_argument('--affs-reg', type=float, default=0.8, metavar='AR',
                     help='regularization for affective features loss (default: 0.01)')
 parser.add_argument('--quat-norm-reg', type=float, default=0.1, metavar='QNR',
                     help='regularization for unit norm constraint (default: 0.01)')
 parser.add_argument('--quat-reg', type=float, default=1.2, metavar='QR',
                     help='regularization for quaternion loss (default: 0.01)')
-parser.add_argument('--recons-reg', type=float, default=0.1, metavar='RCR',
+parser.add_argument('--recons-reg', type=float, default=1.2, metavar='RCR',
                     help='regularization for reconstruction loss (default: 1.2)')
 parser.add_argument('--eval-interval', type=int, default=1, metavar='EI',
                     help='interval after which model is evaluated (default: 1)')
@@ -107,8 +107,19 @@ prefix_length = int(0.3 * num_frames)
 target_length = int(num_frames - prefix_length)
 rots_dim = data_dict[any_dict_key]['rotations'].shape[-1]
 
+intended_emotion_dim = data_dict[any_dict_key]['Intended emotion'].shape[-1]
+intended_polarity_dim = data_dict[any_dict_key]['Intended polarity'].shape[-1]
+acting_task_dim = data_dict[any_dict_key]['Acting task'].shape[-1]
+gender_dim = data_dict[any_dict_key]['Gender'].shape[-1]
+age_dim = 1
+handedness_dim = data_dict[any_dict_key]['Handedness'].shape[-1]
+native_tongue_dim = data_dict[any_dict_key]['Native tongue'].shape[-1]
+
 pr = processor.Processor(args, data_path, data_loader, text_length, num_frames + 2,
-                         affs_dim, num_joints, coords, rots_dim, joint_names, joint_parents,
+                         affs_dim, num_joints, coords, rots_dim,
+                         intended_emotion_dim, intended_polarity_dim,
+                         acting_task_dim, gender_dim, age_dim, handedness_dim, native_tongue_dim,
+                         joint_names, joint_parents,
                          generate_while_train=False, save_path=base_path, device=device)
 
 # idx = 1302

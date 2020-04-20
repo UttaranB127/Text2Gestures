@@ -4,6 +4,7 @@ import glob
 import numpy as np
 import os
 
+from sklearn.preprocessing import OneHotEncoder
 from utils.mocap_dataset import MocapDataset
 
 # torch
@@ -26,6 +27,13 @@ def split_data_dict(data_dict, eval_size=0.1, randomized=True, fill=1):
     for idx, sample_idx in enumerate(samples_valid):
         data_dict_eval[str(idx).zfill(fill)] = data_dict[str(sample_idx).zfill(fill)]
     return data_dict_train, data_dict_eval
+
+
+def to_one_hot(categorical_value, categories):
+    index = categories.index(categorical_value)
+    one_hot_array = np.zeros(len(categories))
+    one_hot_array[index] = 1.
+    return one_hot_array
 
 
 def load_data(_path, dataset, frame_drop=1, add_mirrored=False):
@@ -53,15 +61,30 @@ def load_data(_path, dataset, frame_drop=1, add_mirrored=False):
                     line = line[:-1]
                     tag_names.append(line)
             id = tag_names.index('ID')
-            tags_files = glob.glob(os.path.join(data_path, 'tags/*.txt'))
-            num_files = len(tags_files)
-            for data_counter, tags_file in enumerate(tags_files):
-                tags_data = []
-                with open(tags_file) as f:
+            relevant_tags = ['Intended emotion', 'Intended polarity',
+                             'Perceived category', 'Perceived polarity',
+                             'Acting task', 'Gender', 'Age', 'Handedness', 'Native tongue', 'Text']
+            tag_categories = [[] for _ in range(len(relevant_tags) - 1)]
+            tag_files = glob.glob(os.path.join(data_path, 'tags/*.txt'))
+            num_files = len(tag_files)
+            for tag_file in tag_files:
+                tag_data = []
+                with open(tag_file) as f:
                     for line in f.readlines():
                         line = line[:-1]
-                        tags_data.append(line)
-                bvh_file = os.path.join(data_path, 'bvh/' + tags_data[id] + '.bvh')
+                        tag_data.append(line)
+                for category in range(len(tag_categories)):
+                    tag_to_append = relevant_tags[category]
+                    if tag_data[tag_names.index(tag_to_append)] not in tag_categories[category]:
+                        tag_categories[category].append(tag_data[tag_names.index(tag_to_append)])
+
+            for data_counter, tag_file in enumerate(tag_files):
+                tag_data = []
+                with open(tag_file) as f:
+                    for line in f.readlines():
+                        line = line[:-1]
+                        tag_data.append(line)
+                bvh_file = os.path.join(data_path, 'bvh/' + tag_data[id] + '.bvh')
                 names, parents, offsets,\
                 positions, rotations = MocapDataset.load_bvh(bvh_file, channel_map)
                 positions_down_sampled = positions[1::frame_drop]
@@ -77,18 +100,29 @@ def load_data(_path, dataset, frame_drop=1, add_mirrored=False):
                 joints_dict['joints_offsets_all'] = offsets
                 joints_dict['joints_left'] = [idx for idx, name in enumerate(names) if 'left' in name.lower()]
                 joints_dict['joints_right'] = [idx for idx, name in enumerate(names) if 'right' in name.lower()]
-                data_dict[tags_data[id]] = dict()
-                data_dict[tags_data[id]]['joints_dict'] = joints_dict
-                data_dict[tags_data[id]]['positions'] = positions_down_sampled
-                data_dict[tags_data[id]]['rotations'] = rotations_down_sampled
-                data_dict[tags_data[id]]['affective_features'] =\
+                data_dict[tag_data[id]] = dict()
+                data_dict[tag_data[id]]['joints_dict'] = joints_dict
+                data_dict[tag_data[id]]['positions'] = positions_down_sampled
+                data_dict[tag_data[id]]['rotations'] = rotations_down_sampled
+                data_dict[tag_data[id]]['affective_features'] =\
                     MocapDataset.get_mpi_affective_features(positions_down_sampled)
-                for tag_name in set(tag_names) - {'ID'}:
-                    data_dict[tags_data[id]][tag_name] = tags_data[tag_names.index(tag_name)]
+                for tag_index, tag_name in enumerate(relevant_tags):
                     if tag_name.lower() == 'text':
-                        text_length = len(data_dict[tags_data[id]][tag_name])
+                        data_dict[tag_data[id]][tag_name] = tag_data[tag_names.index(tag_name)]
+                        text_length = len(data_dict[tag_data[id]][tag_name])
                         if text_length > max_text_length:
                             max_text_length = text_length
+                        continue
+                    if tag_name.lower() == 'age':
+                        data_dict[tag_data[id]][tag_name] = float(tag_data[tag_names.index(tag_name)]) / 100.
+                        continue
+                    if tag_name is 'Perceived category':
+                        categories = tag_categories[0]
+                    elif tag_name is 'Perceived polarity':
+                        categories = tag_categories[1]
+                    else:
+                        categories = tag_categories[tag_index]
+                    data_dict[tag_data[id]][tag_name] = to_one_hot(tag_data[tag_names.index(tag_name)], categories)
                 print('\rData file not found. Processing file {}/{}: {:3.2f}%'.format(
                     data_counter + 1, num_files, data_counter * 100. / num_files), end='')
             print('\rData file not found. Processing files: done. Saving...', end='')

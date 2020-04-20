@@ -34,7 +34,9 @@ class PositionalEncoding(nn.Module):
 class T2GNet(nn.Module):
 
     def __init__(self, num_tokens, max_time_steps, text_dim, quat_dim, quat_channels,
-                 offsets_dim, num_heads, num_hidden_units, num_layers, dropout=0.5):
+                 offsets_dim, intended_emotion_dim, intended_polarity_dim, acting_task_dim,
+                 gender_dim, age_dim, handedness_dim, native_tongue_dim, num_heads, num_hidden_units,
+                 num_layers, dropout=0.5):
         super(T2GNet, self).__init__()
         self.T = max_time_steps
         self.text_dim = text_dim
@@ -46,15 +48,16 @@ class T2GNet(nn.Module):
         encoder_layers = TransformerEncoderLayer(text_dim, num_heads, num_hidden_units, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, num_layers)
         intermediate_dim = int((text_dim + quat_dim) / 2)
-        self.text_embed = nn.Linear(text_dim, intermediate_dim)
+        self.text_embed = nn.Linear(text_dim + intended_emotion_dim + intended_polarity_dim +\
+            acting_task_dim + gender_dim + age_dim + handedness_dim + native_tongue_dim, intermediate_dim)
         self.text_offsets_to_gestures = nn.Linear(intermediate_dim + offsets_dim, quat_dim)
 
         self.quat_pos_encoder = PositionalEncoding(quat_dim, dropout)
         decoder_layers = TransformerDecoderLayer(quat_dim, num_heads, num_hidden_units, dropout)
         self.transformer_decoder = TransformerDecoder(decoder_layers, num_layers)
         self.temporal_smoothing = nn.ModuleList((
+            # nn.Conv1d(max_time_steps, max_time_steps, 3, padding=1),
             nn.Conv1d(max_time_steps, max_time_steps, 3, padding=1),
-            nn.Conv1d(max_time_steps, max_time_steps, 3, padding=1)
         ))
         self.decoder = nn.Linear(text_dim, num_tokens)
 
@@ -164,7 +167,9 @@ class T2GNet(nn.Module):
     #     else:
     #         return quat, o_z_rs, quat_h
 
-    def forward(self, text, quat=None, offset_lengths=None, only_encoder=False, only_decoder=False):
+    def forward(self, text, intended_emotion=None, intended_polarity=None,
+                acting_task=None, gender=None, age=None, handedness=None, native_tongue=None,
+                quat=None, offset_lengths=None, only_encoder=False, only_decoder=False):
         if not only_decoder:
             if self.text_mask is None or self.text_mask.size(0) != text.shape[1]:
                 self.text_mask = self._generate_square_subsequent_mask(text.shape[1]).to(text.device)
@@ -172,7 +177,16 @@ class T2GNet(nn.Module):
             text_embed = self.text_embedding(text) * math.sqrt(self.text_dim)
             text_pos_enc = self.text_pos_encoder(text_embed)
             text_latent = self.transformer_encoder(text_pos_enc.permute(1, 0, 2), self.text_mask)
-            text_latent = self.text_embed(text_latent)
+            time_steps = text_latent.shape[0]
+            text_latent = self.text_embed(torch.cat((
+                text_latent,
+                intended_emotion.unsqueeze(0).repeat(time_steps, 1, 1),
+                intended_polarity.unsqueeze(0).repeat(time_steps, 1, 1),
+                acting_task.unsqueeze(0).repeat(time_steps, 1, 1),
+                gender.unsqueeze(0).repeat(time_steps, 1, 1),
+                age.unsqueeze(0).repeat(time_steps, 1, 1),
+                handedness.unsqueeze(0).repeat(time_steps, 1, 1),
+                native_tongue.unsqueeze(0).repeat(time_steps, 1, 1)), dim=-1))
             if only_encoder:
                 return text_latent
         else:

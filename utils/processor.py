@@ -58,7 +58,8 @@ class Processor(object):
         Processor for gait generation
     """
 
-    def __init__(self, args, data_path, data_loader, Z, T, A, V, C, D, joint_names,
+    def __init__(self, args, data_path, data_loader, Z, T, A, V, C, D,
+                 IE, IP, AT, G, AGE, H, NT, joint_names,
                  joint_parents, lower_body_start=15, fill=6, min_train_epochs=20,
                  generate_while_train=False, save_path=None, device='cuda:0'):
 
@@ -134,6 +135,13 @@ class Processor(object):
         self.C = C
         self.D = D
         self.O = 1
+        self.IE = IE
+        self.IP = IP
+        self.AT = AT
+        self.G = G
+        self.AGE = AGE
+        self.H = H
+        self.NT = NT
         self.joint_names = joint_names
         self.joint_parents = joint_parents
         self.lower_body_start = lower_body_start
@@ -167,6 +175,7 @@ class Processor(object):
         num_heads = 2  # the number of heads in the multiheadattention models
         dropout = 0.2  # the dropout value
         self.model = T2GNet(num_tokens, self.T - 1, self.Z, self.V * self.D, self.D, self.V - 1,
+                            self.IE, self.IP, self.AT, self.G, self.AGE, self.H, self.NT,
                             num_heads, num_hidden_units, num_layers, dropout).to(device)
 
         # generate
@@ -255,6 +264,13 @@ class Processor(object):
         batch_quat_valid_idx = torch.zeros((batch_size, self.T)).cuda()
         batch_text = torch.zeros((batch_size, self.Z)).cuda().long()
         batch_text_valid_idx = torch.zeros((batch_size, self.Z)).cuda()
+        batch_intended_emotion = torch.zeros((batch_size, self.IE)).cuda()
+        batch_intended_polarity = torch.zeros((batch_size, self.IP)).cuda()
+        batch_acting_task = torch.zeros((batch_size, self.AT)).cuda()
+        batch_gender = torch.zeros((batch_size, self.G)).cuda()
+        batch_age = torch.zeros((batch_size, self.AGE)).cuda()
+        batch_handedness = torch.zeros((batch_size, self.H)).cuda()
+        batch_native_tongue = torch.zeros((batch_size, self.NT)).cuda()
 
         pseudo_passes = (len(dataset) + batch_size - 1) // batch_size
 
@@ -294,8 +310,24 @@ class Processor(object):
                 batch_quat_valid_idx[i] = quat_valid_idx
                 batch_text[i, :text_length] = text
                 batch_text_valid_idx[i] = text_valid_idx
+                batch_intended_emotion[i] = torch.from_numpy(
+                    dataset[str(k).zfill(self.zfill)]['Intended emotion'])
+                batch_intended_polarity[i] = torch.from_numpy(
+                    dataset[str(k).zfill(self.zfill)]['Intended polarity'])
+                batch_acting_task[i] = torch.from_numpy(
+                    dataset[str(k).zfill(self.zfill)]['Acting task'])
+                batch_gender[i] = torch.from_numpy(
+                    dataset[str(k).zfill(self.zfill)]['Gender'])
+                batch_age[i] = torch.tensor(dataset[str(k).zfill(self.zfill)]['Age'])
+                batch_handedness[i] = torch.from_numpy(
+                    dataset[str(k).zfill(self.zfill)]['Handedness'])
+                batch_native_tongue[i] = torch.from_numpy(
+                    dataset[str(k).zfill(self.zfill)]['Native tongue'])
+
             yield batch_joint_offsets, batch_pos, batch_affs, batch_quat, \
-                batch_quat_valid_idx, batch_text, batch_text_valid_idx
+                batch_quat_valid_idx, batch_text, batch_text_valid_idx, \
+                batch_intended_emotion, batch_intended_polarity, batch_acting_task, \
+                batch_gender, batch_age, batch_handedness, batch_native_tongue
 
     def return_batch(self, batch_size, dataset, randomized=True):
         if len(batch_size) > 1:
@@ -319,6 +351,13 @@ class Processor(object):
         batch_quat_valid_idx = torch.zeros((batch_size, self.T)).cuda()
         batch_text = torch.zeros((batch_size, self.Z)).cuda().long()
         batch_text_valid_idx = torch.zeros((batch_size, self.Z)).cuda()
+        batch_intended_emotion = torch.zeros((batch_size, self.IE)).cuda()
+        batch_intended_polarity = torch.zeros((batch_size, self.IP)).cuda()
+        batch_acting_task = torch.zeros((batch_size, self.AT)).cuda()
+        batch_gender = torch.zeros((batch_size, self.G)).cuda()
+        batch_age = torch.zeros((batch_size, self.AGE)).cuda()
+        batch_handedness = torch.zeros((batch_size, self.H)).cuda()
+        batch_native_tongue = torch.zeros((batch_size, self.NT)).cuda()
 
         for i, k in enumerate(rand_keys):
             joint_offsets = torch.from_numpy(dataset[str(k).zfill(self.zfill)]
@@ -346,9 +385,24 @@ class Processor(object):
             batch_quat_valid_idx[i] = quat_valid_idx
             batch_text[i, :text_length] = text
             batch_text_valid_idx[i] = text_valid_idx
+            batch_intended_emotion[i] = torch.from_numpy(
+                dataset[str(k).zfill(self.zfill)]['Intended emotion'])
+            batch_intended_polarity[i] = torch.from_numpy(
+                dataset[str(k).zfill(self.zfill)]['Intended polarity'])
+            batch_acting_task[i] = torch.from_numpy(
+                dataset[str(k).zfill(self.zfill)]['Acting task'])
+            batch_gender[i] = torch.from_numpy(
+                dataset[str(k).zfill(self.zfill)]['Gender'])
+            batch_age[i] = torch.tensor(dataset[str(k).zfill(self.zfill)]['Age'])
+            batch_handedness[i] = torch.from_numpy(
+                dataset[str(k).zfill(self.zfill)]['Handedness'])
+            batch_native_tongue[i] = torch.from_numpy(
+                dataset[str(k).zfill(self.zfill)]['Native tongue'])
 
-        return batch_joint_offsets, batch_pos, batch_affs, batch_quat,\
-            batch_quat_valid_idx, batch_text, batch_text_valid_idx
+        return batch_joint_offsets, batch_pos, batch_affs, batch_quat, \
+                batch_quat_valid_idx, batch_text, batch_text_valid_idx, \
+                batch_intended_emotion, batch_intended_polarity, batch_acting_task, \
+                batch_gender, batch_age, batch_handedness, batch_native_tongue
 
     def per_train(self):
 
@@ -358,13 +412,17 @@ class Processor(object):
         N = 0.
 
         for joint_offsets, pos, affs, quat, quat_valid_idx,\
-            text, text_valid_idx in self.yield_batch(self.args.batch_size, train_loader):
+            text, text_valid_idx, intended_emotion, intended_polarity,\
+                acting_task, gender, age, handedness,\
+                native_tongue in self.yield_batch(self.args.batch_size, train_loader):
 
             self.optimizer.zero_grad()
             with torch.autograd.detect_anomaly():
                 joint_lengths = torch.norm(joint_offsets, dim=-1)
                 scales, _ = torch.max(joint_lengths, dim=-1)
-                quat_pred, quat_pred_pre_norm = self.model(text, quat[:, :-1], joint_lengths / scales[..., None])
+                quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
+                                                           acting_task, gender, age, handedness, native_tongue,
+                                                           quat[:, :-1], joint_lengths / scales[..., None])
 
                 quat_pred_pre_norm = quat_pred_pre_norm.view(quat_pred_pre_norm.shape[0],
                                                              quat_pred_pre_norm.shape[1], -1, self.D)
@@ -466,19 +524,22 @@ class Processor(object):
         eval_loss = 0.
         N = 0.
 
-        for joint_offsets, pos, affs, quat, quat_valid_idx,\
-            text, text_valid_idx in self.yield_batch(self.args.batch_size, test_loader):
+        for joint_offsets, pos, affs, quat, quat_valid_idx, \
+            text, text_valid_idx, intended_emotion, intended_polarity, \
+            acting_task, gender, age, handedness, \
+                native_tongue in self.yield_batch(self.args.batch_size, test_loader):
             with torch.no_grad():
                 joint_lengths = torch.norm(joint_offsets, dim=-1)
                 scales, _ = torch.max(joint_lengths, dim=-1)
                 quat_pred = torch.zeros_like(quat)
                 quat_pred_pre_norm = torch.zeros_like(quat)
                 quat_pred[:, 0] = torch.cat(quat_pred.shape[0] * [self.quats_sos]).view(quat_pred[:, 0].shape)
-                text_latent = self.model(text, only_encoder=True)
+                text_latent = self.model(text, intended_emotion, intended_polarity,
+                                         acting_task, gender, age, handedness, native_tongue, only_encoder=True)
                 for s in range(1, self.T):
-                    quat_pred_last, quat_pred_pre_norm_last = self.model(text_latent,
-                                                                         quat_pred[:, :s],
-                                                                         joint_lengths / scales[..., None],
+                    quat_pred_last, quat_pred_pre_norm_last = self.model(text_latent, quat=quat_pred[:, :s],
+                                                                         offset_lengths=joint_lengths /
+                                                                                        scales[..., None],
                                                                          only_decoder=True)
                     quat_pred[:, s:s + 1] = quat_pred_last[:, -1:]
                     quat_pred_pre_norm[:, s:s + 1] = quat_pred_pre_norm_last[:,  -1:]

@@ -473,16 +473,6 @@ class Processor(object):
                 # nn.utils.clip_grad_norm_(self.model.parameters(), self.args.gradient_clip)
                 self.optimizer.step()
 
-            # animation = {
-            #     'joint_names': self.joint_names,
-            #     'joint_offsets': joint_offsets,
-            #     'joint_parents': self.joint_parents,
-            #     'positions': pos,
-            #     'rotations': quat
-            # }
-            # MocapDataset.save_as_bvh(animation,
-            #                          dataset_name=self.dataset,
-            #                          subset_name='gt')
             # animation_pred = {
             #     'joint_names': self.joint_names,
             #     'joint_offsets': joint_offsets,
@@ -493,6 +483,16 @@ class Processor(object):
             # MocapDataset.save_as_bvh(animation_pred,
             #                          dataset_name=self.dataset,
             #                          subset_name='test')
+            # animation = {
+            #     'joint_names': self.joint_names,
+            #     'joint_offsets': joint_offsets,
+            #     'joint_parents': self.joint_parents,
+            #     'positions': pos,
+            #     'rotations': quat
+            # }
+            # MocapDataset.save_as_bvh(animation,
+            #                          dataset_name=self.dataset,
+            #                          subset_name='gt')
 
             # Compute statistics
             batch_loss += train_loss.item()

@@ -58,7 +58,7 @@ parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
                     help='momentum (default: 0.9)')
 parser.add_argument('--weight-decay', type=float, default=5e-4, metavar='D',
                     help='Weight decay (default: 5e-4)')
-parser.add_argument('--upper-body-weight', type=float, default=1.2, metavar='UBW',
+parser.add_argument('--upper-body-weight', type=float, default=1., metavar='UBW',
                     help='loss weight on the upper body joint motions (default: 2.05)')
 parser.add_argument('--affs-reg', type=float, default=0.8, metavar='AR',
                     help='regularization for affective features loss (default: 0.01)')

@@ -9,7 +9,6 @@ from net.T2GNet import T2GNet as T2GNet
 
 from torchlight.torchlight.io import IO
 from torchtext.data.utils import get_tokenizer
-from utils.common import generate_rvo_trajectories
 # from utils.mocap_dataset import MocapDataset
 from utils.mocap_dataset import MocapDataset
 from utils.Quaternions import Quaternions

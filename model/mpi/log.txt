@@ -2,3 +2,5 @@
 [04.29.20|19:53:40] Training epoch: 0
 [04.29.20|19:55:28] Training epoch: 0
 [04.29.20|20:17:26] Training epoch: 0
+[04.29.20|20:18:29] Training epoch: 0
+[04.29.20|20:18:33] 	Iter 0 Done. | loss: 25.6906 | lr: 0.001000 | tf: 1.000000

@@ -536,16 +536,9 @@ class Processor(object):
                 quat_pred = torch.zeros_like(quat)
                 quat_pred_pre_norm = torch.zeros_like(quat)
                 quat_pred[:, 0] = torch.cat(quat_pred.shape[0] * [self.quats_sos]).view(quat_pred[:, 0].shape)
-                text_latent = self.model(text, intended_emotion, intended_polarity,
-                                         acting_task, gender, age, handedness, native_tongue, only_encoder=True)
-                for t in range(1, self.T):
-                    quat_pred_last, quat_pred_pre_norm_last = self.model(text_latent, quat=quat_pred[:, :t],
-                                                                         offset_lengths=joint_lengths /
-                                                                                        scales[..., None],
-                                                                         only_decoder=True)
-                    quat_pred[:, t:t + 1] = quat_pred_last[:, -1:]
-                    quat_pred_pre_norm[:, t:t + 1] = quat_pred_pre_norm_last[:,  -1:]
-
+                quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
+                                                           acting_task, gender, age, handedness, native_tongue,
+                                                           quat[:, :-1], joint_lengths / scales[..., None])
                 quat_pred_pre_norm = quat_pred_pre_norm.view(quat_pred_pre_norm.shape[0],
                                                              quat_pred_pre_norm.shape[1], -1, self.D)
                 quat_norm_loss = self.args.quat_norm_reg *\
@@ -653,13 +646,9 @@ class Processor(object):
             scales, _ = torch.max(joint_lengths, dim=-1)
             quat_pred = torch.zeros_like(quat)
             quat_pred[:, 0] = torch.cat(quat_pred.shape[0] * [self.quats_sos]).view(quat_pred[:, 0].shape)
-            text_latent = self.model(text, intended_emotion, intended_polarity,
-                                     acting_task, gender, age, handedness, native_tongue, only_encoder=True)
-            for t in range(1, self.T):
-                quat_pred_last, _ = self.model(text_latent, quat=quat_pred[:, :t],
-                                               offset_lengths=joint_lengths / scales[..., None],
-                                               only_decoder=True)
-                quat_pred[:, t:t + 1] = quat_pred_last[:, -1:]
+            quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
+                                                       acting_task, gender, age, handedness, native_tongue,
+                                                       quat[:, :-1], joint_lengths / scales[..., None])
 
             root_pos = torch.zeros(quat_pred.shape[0], quat_pred.shape[1], self.C).cuda()
             pos_pred = MocapDataset.forward_kinematics(quat_pred.contiguous().view(
@@ -689,8 +678,7 @@ class Processor(object):
         pos_pred_np = pos_pred.contiguous().view(pos_pred.shape[0],
                                                  pos_pred.shape[1], -1).permute(0, 2, 1).\
             detach().cpu().numpy()
-        display_animations(pos_pred_np, self.joint_parents, save=True,
-                           dataset_name=self.dataset,
-                           subset_name='epoch_' + str(self.best_loss_epoch),
-                           overwrite=True)
-        # temp = 1
+        # display_animations(pos_pred_np, self.joint_parents, save=True,
+        #                    dataset_name=self.dataset,
+        #                    subset_name='epoch_' + str(self.best_loss_epoch),
+        #                    overwrite=True)

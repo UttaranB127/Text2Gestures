@@ -635,7 +635,7 @@ class Processor(object):
         if load_saved_model:
             self.load_best_model()
         self.model.eval()
-        test_loader = self.data_loader['train']
+        test_loader = self.data_loader['test']
 
         joint_offsets, pos, affs, quat, quat_valid_idx, \
             text, text_valid_idx, intended_emotion, intended_polarity, \

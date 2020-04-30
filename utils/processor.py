@@ -165,8 +165,8 @@ class Processor(object):
                                                 lower=True)
             train_text, eval_text, test_text = tt.datasets.WikiText2.splits(self.text_processor)
             self.text_processor.build_vocab(train_text, eval_text, test_text)
-        self.text_sos = self.text_processor.vocab.stoi['<sos>']
-        self.text_eos = self.text_processor.vocab.stoi['<eos>']
+        self.text_sos = np.int64(self.text_processor.vocab.stoi['<sos>'])
+        self.text_eos = np.int64(self.text_processor.vocab.stoi['<eos>'])
         num_tokens = len(self.text_processor.vocab.stoi)  # the size of vocabulary
         self.Z = Z + 2  # embedding dimension
         num_hidden_units = 200  # the dimension of the feedforward network model in nn.TransformerEncoder

@@ -379,8 +379,11 @@ class Processor(object):
 
             batch_joint_offsets[i] = joint_offsets
             batch_pos[i, :pos.shape[0]] = pos
-            batch_pos[i, :affs.shape[0]] = affs
+            batch_pos[i, pos.shape[0]:] = pos[-1:].clone()
+            batch_affs[i, :affs.shape[0]] = affs
+            batch_affs[i, affs.shape[0]:] = affs[-1:].clone()
             batch_quat[i, :quat_length] = quat.view(quat_length, -1)
+            batch_quat[i, quat_length:] = quat[-1:].view(1, -1).clone()
             batch_quat_valid_idx[i] = quat_valid_idx
             batch_text[i, :text_length] = text
             batch_text_valid_idx[i] = text_valid_idx
@@ -535,13 +538,13 @@ class Processor(object):
                 quat_pred[:, 0] = torch.cat(quat_pred.shape[0] * [self.quats_sos]).view(quat_pred[:, 0].shape)
                 text_latent = self.model(text, intended_emotion, intended_polarity,
                                          acting_task, gender, age, handedness, native_tongue, only_encoder=True)
-                for s in range(1, self.T):
-                    quat_pred_last, quat_pred_pre_norm_last = self.model(text_latent, quat=quat_pred[:, :s],
+                for t in range(1, self.T):
+                    quat_pred_last, quat_pred_pre_norm_last = self.model(text_latent, quat=quat_pred[:, :t],
                                                                          offset_lengths=joint_lengths /
                                                                                         scales[..., None],
                                                                          only_decoder=True)
-                    quat_pred[:, s:s + 1] = quat_pred_last[:, -1:]
-                    quat_pred_pre_norm[:, s:s + 1] = quat_pred_pre_norm_last[:,  -1:]
+                    quat_pred[:, t:t + 1] = quat_pred_last[:, -1:]
+                    quat_pred_pre_norm[:, t:t + 1] = quat_pred_pre_norm_last[:,  -1:]
 
                 quat_pred_pre_norm = quat_pred_pre_norm.view(quat_pred_pre_norm.shape[0],
                                                              quat_pred_pre_norm.shape[1], -1, self.D)
@@ -634,139 +637,60 @@ class Processor(object):
             prefix_length = self.prefix_length
         return [var[s, :prefix_length].unsqueeze(0) for s in range(var.shape[0])]
 
-    def generate_linear_trajectory(self, traj, alpha=0.001):
-        traj_markers = (traj[:, self.prefix_length - 2] +
-                        (traj[:, self.prefix_length - 1] - traj[:, self.prefix_length - 2]) / alpha).unsqueeze(1)
-        return traj_markers
-
-    def generate_circular_trajectory(self, traj, alpha=5., num_segments=10):
-        last_segment = alpha * traj[:, self.prefix_length - 1:self.prefix_length] -\
-                       traj[:, self.prefix_length - 2:self.prefix_length - 1]
-        last_marker = traj[:, self.prefix_length - 1:self.prefix_length]
-        traj_markers = last_marker.clone()
-        angle_per_segment = 2. * np.pi / num_segments
-        for _ in range(num_segments):
-            next_segment = qrot(expmap_to_quaternion(
-                torch.tensor([0, -angle_per_segment, 0]).cuda().float().repeat(
-                    last_segment.shape[0], last_segment.shape[1], 1)), torch.cat((
-                last_segment[..., 0:1],
-                torch.zeros_like(last_segment[..., 0:1]),
-                last_segment[..., 1:]), dim=-1))[..., [0, 2]]
-            next_marker = next_segment + last_marker
-            traj_markers = torch.cat((traj_markers, next_marker), dim=1)
-            last_segment = next_segment.clone()
-            last_marker = next_marker.clone()
-        traj_markers = traj_markers[:, 1:]
-        return traj_markers
-
-    def compute_next_traj_point(self, traj, traj_marker, rs_pred):
-        tangent = traj_marker - traj
-        tangent /= (torch.norm(tangent, dim=-1) + 1e-9)
-        return tangent * rs_pred + traj
-
-    def compute_next_traj_point_sans_markers(self, pos_last, quat_next, z_pred, rs_pred):
-        pos_next = torch.zeros_like(pos_last)
-        offsets = torch.from_numpy(self.mocap.joint_offsets).cuda().float(). \
-            unsqueeze(0).unsqueeze(0).repeat(pos_last.shape[0], pos_last.shape[1], 1, 1)
-        quat_copy = quat_next.contiguous().view(quat_next.shape[0], quat_next.shape[1], -1, self.D).clone()
-        for joint in range(1, self.V):
-            pos_next[:, :, joint] = qrot(quat_copy[:, :, joint - 1], offsets[:, :, joint]) \
-                                    + pos_next[:, :, self.mocap.joint_parents[joint]]
-        root = pos_next[:, :, 0]
-        l_shoulder = pos_next[:, :, 13]
-        r_shoulder = pos_next[:, :, 17]
-        facing = torch.cross(l_shoulder - root, r_shoulder - root, dim=-1)[..., [0, 2]]
-        facing /= (torch.norm(facing, dim=-1)[..., None] + 1e-9)
-        return rs_pred * facing + pos_last[:, :, 0, [0, 2]]
-
-    def get_diff_from_traj(self, pos_pred, traj_pred, s):
-        root = pos_pred[s][:, :, 0]
-        l_shoulder = pos_pred[s][:, :, 13]
-        r_shoulder = pos_pred[s][:, :, 17]
-        facing = torch.cross(l_shoulder - root, r_shoulder - root, dim=-1)[..., [0, 2]]
-        facing /= (torch.norm(facing, dim=-1)[..., None] + 1e-9)
-        tangents = traj_pred[s][:, 1:] - traj_pred[s][:, :-1]
-        tangent_norms = torch.norm(tangents, dim=-1)
-        tangents /= (tangent_norms[..., None] + 1e-9)
-        tangents = torch.cat((torch.zeros_like(tangents[:, 0:1]), tangents), dim=1)
-        tangent_norms = torch.cat((torch.zeros_like(tangent_norms[:, 0:1]), tangent_norms), dim=1)
-        angle_diff = torch.acos(torch.einsum('ijk,ijk->ij', facing, tangents).clamp(min=-1., max=1.))
-        angle_diff[tangent_norms < 1e-6] = 0.
-        return angle_diff
-
-    def rotate_gaits(self, pos_pred, quat_pred, quat_diff, head_tilt, l_shoulder_slouch, r_shoulder_slouch, s):
-        quat_copy = quat_pred[s].contiguous().view(
-            quat_pred[s].shape[0], quat_pred[s].shape[1], -1, self.D).clone()
-        pos_copy = pos_pred[s].clone()
-        for j in range(1, self.V):
-            quat_copy[:, :, j - 1] = torch.from_numpy((Quaternions(quat_diff) *
-                                                       Quaternions(quat_copy[:, :, j - 1].cpu().numpy())).qs
-                                                      ).cuda().float()
-            if j == 12:
-                quat_copy[:, :, j - 1] = torch.from_numpy((Quaternions(head_tilt) *
-                                                           Quaternions(quat_copy[:, :, j - 1].cpu().numpy())).qs
-                                                          ).cuda().float()
-            if j == 13:
-                quat_copy[:, :, j - 1] = torch.from_numpy((Quaternions(l_shoulder_slouch) *
-                                                           Quaternions(quat_copy[:, :, j - 1].cpu().numpy())).qs
-                                                          ).cuda().float()
-            if j == 17:
-                quat_copy[:, :, j - 1] = torch.from_numpy((Quaternions(r_shoulder_slouch) *
-                                                           Quaternions(quat_copy[:, :, j - 1].cpu().numpy())).qs
-                                                          ).cuda().float()
-            pos_copy[:, :, j] = qrot(quat_copy[:, :, j - 1],
-                                     torch.from_numpy(
-                                         self.mocap.joint_offsets[j]
-                                     ).cuda().float().unsqueeze(0).unsqueeze(0)
-                                     .repeat(pos_copy.shape[0], pos_copy.shape[1], 1)) + \
-                                pos_copy[:, :, self.mocap.joint_parents[j]]
-        return pos_copy, quat_copy
-
     def generate_motion(self, load_saved_model=True, samples_to_generate=10, max_steps=300, randomized=True):
 
         if load_saved_model:
             self.load_best_model()
         self.model.eval()
-        test_loader = self.data_loader['test']
+        test_loader = self.data_loader['train']
 
-        joint_offsets, pos, quat, quat_valid_idx,\
-        text, text_valid_idx = self.return_batch([samples_to_generate], test_loader, randomized=randomized)
+        joint_offsets, pos, affs, quat, quat_valid_idx, \
+            text, text_valid_idx, intended_emotion, intended_polarity, \
+            acting_task, gender, age, handedness, \
+            native_tongue = self.return_batch([samples_to_generate], test_loader, randomized=randomized)
         with torch.no_grad():
             joint_lengths = torch.norm(joint_offsets, dim=-1)
-
             scales, _ = torch.max(joint_lengths, dim=-1)
             quat_pred = torch.zeros_like(quat)
-            quat_pred_pre_norm = torch.zeros_like(quat)
             quat_pred[:, 0] = torch.cat(quat_pred.shape[0] * [self.quats_sos]).view(quat_pred[:, 0].shape)
-            text_latent = self.model(text, only_encoder=True)
-            for s in range(1, self.T):
-                quat_pred_last, quat_pred_pre_norm_last = self.model(text_latent,
-                                                                     quat_pred[:, :s],
-                                                                     joint_lengths / scales[..., None],
-                                                                     only_decoder=True)
-                quat_pred[:, s:s + 1] = quat_pred_last[:, -1:]
-                quat_pred_pre_norm[:, s:s + 1] = quat_pred_pre_norm_last[:, -1:]
-        root_pos = torch.zeros(quat_pred.shape[0], quat_pred.shape[1], self.C).cuda()
-        pos_pred = MocapDataset.forward_kinematics(quat_pred.contiguous().view(
-            quat_pred.shape[0], quat_pred.shape[1], -1, self.D), root_pos, self.joint_parents,
-            torch.cat((root_pos[:, 0:1], joint_offsets), dim=1).unsqueeze(1)).cpu().numpy()
-        pos_pred = np.swapaxes(np.reshape(pos_pred, (pos_pred.shape[0], pos_pred.shape[1], -1)), 1, 2)
+            text_latent = self.model(text, intended_emotion, intended_polarity,
+                                     acting_task, gender, age, handedness, native_tongue, only_encoder=True)
+            for t in range(1, self.T):
+                quat_pred_last, _ = self.model(text_latent, quat=quat_pred[:, :t],
+                                               offset_lengths=joint_lengths / scales[..., None],
+                                               only_decoder=True)
+                quat_pred[:, t:t + 1] = quat_pred_last[:, -1:]
 
-        # pos_np = np.swapaxes(
-        #     np.reshape((pos - pos[:, :, 0:1]).cpu().numpy(),
-        #                (pos.shape[0], pos.shape[1], -1)), 1, 2)
+            root_pos = torch.zeros(quat_pred.shape[0], quat_pred.shape[1], self.C).cuda()
+            pos_pred = MocapDataset.forward_kinematics(quat_pred.contiguous().view(
+                quat_pred.shape[0], quat_pred.shape[1], -1, self.D), root_pos, self.joint_parents,
+                torch.cat((root_pos[:, 0:1], joint_offsets), dim=1).unsqueeze(1))
 
-        # self.mocap.save_as_bvh(pos_pred[s][:, :, 0].detach().cpu().numpy(),
-        #                        o_z_rs_pred[s][..., 0:1].detach().cpu().numpy(),
-        #                        np.reshape(quat_pred[s].detach().cpu().numpy(),
-        #                                   (quat_pred[s].shape[0], quat_pred[s].shape[1], -1, self.D)),
-        #                        dataset_name=self.dataset,
-        #                        # subset_name='epoch_' + str(self.best_loss_epoch),
-        #                        # save_file_names=[str(s).zfill(6)])
-        #                        subset_name=os.path.join('epoch_' + str(self.best_loss_epoch), label_dir),
-        #                        save_file_names=[save_file_name])
-
-        display_animations(pos_pred, self.joint_parents, save=True,
+        animation_pred = {
+            'joint_names': self.joint_names,
+            'joint_offsets': joint_offsets,
+            'joint_parents': self.joint_parents,
+            'positions': pos_pred,
+            'rotations': quat_pred
+        }
+        MocapDataset.save_as_bvh(animation_pred,
+                                 dataset_name=self.dataset,
+                                 subset_name='test')
+        animation = {
+            'joint_names': self.joint_names,
+            'joint_offsets': joint_offsets,
+            'joint_parents': self.joint_parents,
+            'positions': pos,
+            'rotations': quat
+        }
+        MocapDataset.save_as_bvh(animation,
+                                 dataset_name=self.dataset,
+                                 subset_name='gt')
+        pos_pred_np = pos_pred.contiguous().view(pos_pred.shape[0],
+                                                 pos_pred.shape[1], -1).permute(0, 2, 1).\
+            detach().cpu().numpy()
+        display_animations(pos_pred_np, self.joint_parents, save=True,
                            dataset_name=self.dataset,
                            subset_name='epoch_' + str(self.best_loss_epoch),
                            overwrite=True)
+        temp = 1

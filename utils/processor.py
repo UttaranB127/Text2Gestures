@@ -57,7 +57,7 @@ class Processor(object):
         Processor for gait generation
     """
 
-    def __init__(self, args, data_path, data_loader, Z, T, A, V, C, D,
+    def __init__(self, args, data_path, data_loader, Z, T, A, V, C, D, tag_cats,
                  IE, IP, AT, G, AGE, H, NT, joint_names,
                  joint_parents, lower_body_start=15, fill=6, min_train_epochs=20,
                  generate_while_train=False, save_path=None, device='cuda:0'):
@@ -134,6 +134,7 @@ class Processor(object):
         self.C = C
         self.D = D
         self.O = 1
+        self.tag_cats = tag_cats
         self.IE = IE
         self.IP = IP
         self.AT = AT

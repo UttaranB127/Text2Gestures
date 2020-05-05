@@ -116,7 +116,7 @@ handedness_dim = data_dict[any_dict_key]['Handedness'].shape[-1]
 native_tongue_dim = data_dict[any_dict_key]['Native tongue'].shape[-1]
 
 pr = processor.Processor(args, data_path, data_loader, text_length, num_frames + 2,
-                         affs_dim, num_joints, coords, rots_dim,
+                         affs_dim, num_joints, coords, rots_dim, tag_categories,
                          intended_emotion_dim, intended_polarity_dim,
                          acting_task_dim, gender_dim, age_dim, handedness_dim, native_tongue_dim,
                          joint_names, joint_parents,

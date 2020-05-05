@@ -351,7 +351,7 @@ class MocapDataset:
         return metadata, tabs
 
     @staticmethod
-    def save_as_bvh(animations, dataset_name=None, subset_name=None, save_file_names=None,
+    def save_as_bvh(animations, dataset_name=None, subset_name=None, save_file_paths=None,
                     fill=6, frame_time=0.032):
         '''
         Saves an animations as a BVH file
@@ -367,12 +367,13 @@ class MocapDataset:
         subset_name: str
             Name of the subset, e.g., gt, epoch_200.
 
-        save_file_names: str
-            Name of the files to be saved. If the files exist, they are overwritten.
+        save_file_paths: str
+            Containing directories of the bvh files to be saved.
+            If the bvh files exist, they are overwritten.
             If this is None, then the files are saved in numerical order 0, 1, 2, ...
 
         fill: int
-            Zero padding for file name, if save_file_names is None. Otherwise, it is not used.
+            Zero padding for file name, if save_file_paths is None. Otherwise, it is not used.
 
         frame_time: float
             Time duration of each frame.
@@ -398,8 +399,11 @@ class MocapDataset:
                                                                num_joints, -1).detach().cpu().numpy()
         for s in range(num_samples):
             trajectory = animations['positions'][s, :, 0].detach().cpu().numpy()
-            save_file_name = os.path.join(
-                dir_name, (save_file_names[s] if save_file_names is not None else str(s).zfill(fill)) + '.bvh')
+            save_file_path = os.path.join(
+                dir_name, save_file_paths[s] if save_file_paths is not None else str(s).zfill(fill))
+            if not os.path.exists(save_file_path):
+                os.makedirs(save_file_path)
+            save_file_name = os.path.join(save_file_path, 'root.bvh')
             hierarchy = [[] for _ in range(len(animations['joint_parents']))]
             for j in range(len(animations['joint_parents'])):
                 if not animations['joint_parents'][j] == -1:

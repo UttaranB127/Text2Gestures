@@ -41,12 +41,13 @@ def load_data(_path, dataset, frame_drop=1, add_mirrored=False):
     data_dict_file = os.path.join(data_path, 'data_dict_drop_' + str(frame_drop) + '.npz')
     try:
         data_dict = np.load(data_dict_file, allow_pickle=True)['data_dict'].item()
-        tag_categories = np.load(data_dict_file, allow_pickle=True)['tag_categories'].item()
+        tag_categories = list(np.load(data_dict_file, allow_pickle=True)['tag_categories'])
         max_text_length = np.load(data_dict_file, allow_pickle=True)['max_text_length'].item()
         max_time_steps = np.load(data_dict_file, allow_pickle=True)['max_time_steps'].item()
         print('Data file found. Returning data.')
     except FileNotFoundError:
         data_dict = []
+        tag_categories = []
         max_text_length = 0.
         max_time_steps = 0.
         if dataset == 'mpi':
@@ -129,6 +130,7 @@ def load_data(_path, dataset, frame_drop=1, add_mirrored=False):
             print('\rData file not found. Processing files: done. Saving...', end='')
             np.savez_compressed(data_dict_file,
                                 data_dict=data_dict,
+                                tag_categories=tag_categories,
                                 max_text_length=max_text_length,
                                 max_time_steps=max_time_steps)
             print('done. Returning data.')

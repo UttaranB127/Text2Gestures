@@ -545,7 +545,7 @@ class Processor(object):
                 quat_norm_loss = self.args.quat_norm_reg *\
                                  torch.mean((torch.sum(quat_pred_pre_norm ** 2, dim=-1) - 1) ** 2)
 
-                quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred[:, 1:], quat[:, 1:],
+                quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat[:, 1:],
                                                                    quat_valid_idx[:, 1:],
                                                                    self.V, self.D,
                                                                    self.lower_body_start,
@@ -564,7 +564,7 @@ class Processor(object):
                 shifted_pos = pos - pos[:, :, 0:1]
                 shifted_pos_pred = pos_pred - pos_pred[:, :, 0:1]
 
-                recons_loss = self.recons_loss_func(shifted_pos_pred[:, 1:], shifted_pos[:, 1:])
+                recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos[:, 1:])
                 # recons_loss = torch.abs(shifted_pos_pred[:, 1:] - shifted_pos[:, 1:]).sum(-1)
                 # recons_loss = self.args.upper_body_weight * (recons_loss[:, :, :self.lower_body_start].sum(-1)) + \
                 #               recons_loss[:, :, self.lower_body_start:].sum(-1)
@@ -581,7 +581,7 @@ class Processor(object):
                 #
                 # affs_loss = torch.abs(affs[:, 1:] - affs_pred[:, 1:]).sum(-1)
                 # affs_loss = self.args.affs_reg * torch.mean((affs_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
-                affs_loss = self.affs_loss_func(affs_pred[:, 1:], affs[:, 1:])
+                affs_loss = self.affs_loss_func(affs_pred, affs[:, 1:])
 
                 eval_loss += quat_norm_loss + quat_loss + recons_loss + affs_loss
                 # eval_loss += quat_norm_loss + quat_loss + recons_loss + recons_derv_loss + affs_loss
@@ -650,6 +650,9 @@ class Processor(object):
             quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
                                                        acting_task, gender, age, handedness, native_tongue,
                                                        quat[:, :-1], joint_lengths / scales[..., None])
+            for s in range(len(quat_pred)):
+                quat_pred[s] = qfix(quat_pred[s].view(quat_pred[s].shape[0],
+                                                      self.V, -1)).view(quat_pred[s].shape[0], -1)
 
             root_pos = torch.zeros(quat_pred.shape[0], quat_pred.shape[1], self.C).cuda()
             pos_pred = MocapDataset.forward_kinematics(quat_pred.contiguous().view(

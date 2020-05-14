@@ -153,10 +153,10 @@ def qfix(q):
     assert len(q.shape) == 3
     assert q.shape[-1] == 4
 
-    result = q.copy()
-    dot_products = np.sum(q[1:] * q[:-1], axis=2)
+    result = q.clone()
+    dot_products = torch.sum(q[1:] * q[:-1], dim=2)
     mask = dot_products < 0
-    mask = (np.cumsum(mask, axis=0) % 2).astype(bool)
+    mask = (torch.cumsum(mask, dim=0) % 2).type(torch.bool)
     result[1:][mask] *= -1
     return result
 

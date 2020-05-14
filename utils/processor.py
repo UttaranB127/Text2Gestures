@@ -545,7 +545,7 @@ class Processor(object):
                 quat_norm_loss = self.args.quat_norm_reg *\
                                  torch.mean((torch.sum(quat_pred_pre_norm ** 2, dim=-1) - 1) ** 2)
 
-                quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred[:, 1:], quat[:, 1:],
+                quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat[:, 1:],
                                                                    quat_valid_idx[:, 1:],
                                                                    self.V, self.D,
                                                                    self.lower_body_start,

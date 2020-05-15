@@ -153,10 +153,19 @@ def qfix(q):
     assert len(q.shape) == 3
     assert q.shape[-1] == 4
 
-    result = q.clone()
-    dot_products = torch.sum(q[1:] * q[:-1], dim=2)
-    mask = dot_products < 0
-    mask = (torch.cumsum(mask, dim=0) % 2).type(torch.bool)
+    if torch.is_tensor(q):
+        result = q.clone()
+        dot_products = torch.sum(q[1:] * q[:-1], dim=2)
+        mask = dot_products < 0
+        mask = (torch.cumsum(mask, dim=0) % 2).type(torch.bool)
+    elif isinstance(q, np.ndarray):
+        result = q.copy()
+        dot_products = np.sum(q[1:] * q[:-1], axis=2)
+        mask = dot_products < 0
+        mask = (np.cumsum(mask, axis=0) % 2).astype(np.bool)
+    else:
+        print('Data type must be either numpy ndarray or torch tensor')
+        exit(1)
     result[1:][mask] *= -1
     return result
 

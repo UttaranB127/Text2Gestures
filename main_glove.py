@@ -2,7 +2,7 @@ import argparse
 import os
 import numpy as np
 
-from utils import loader, processor
+from utils import loader, processor_glove as processor
 from utils.visualizations import display_animations
 
 import torch
@@ -22,6 +22,7 @@ if not os.path.exists(model_path):
 parser = argparse.ArgumentParser(description='Gait Gen')
 parser.add_argument('--dataset', type=str, default='mpi', metavar='D',
                     help='dataset to train or evaluate method (default: mpi)')
+parser.add_argument('-embedding-src', default='glove.6B.300d.txt')
 parser.add_argument('--frame-drop', type=int, default=2, metavar='FD',
                     help='frame down-sample rate (default: 2)')
 parser.add_argument('--add-mirrored', type=bool, default=False, metavar='AM',
@@ -88,13 +89,15 @@ args = parser.parse_args()
 device = 'cuda:0'
 randomized = False
 
-args.work_dir = os.path.join(model_path, args.dataset)
+args.work_dir = os.path.join(model_path, args.dataset + '_glove')
 if not os.path.exists(args.work_dir):
     os.mkdir(args.work_dir)
 
-data_dict, tag_categories, text_length, num_frames = loader.load_data(data_path, args.dataset,
-                                                                      frame_drop=args.frame_drop,
-                                                                      add_mirrored=args.add_mirrored)
+data_dict, word2idx, embedding_table,\
+    tag_categories, num_frames = loader.load_data_with_glove(data_path, args.dataset,
+                                                             os.path.join(data_path, args.embedding_src),
+                                                             frame_drop=args.frame_drop,
+                                                             add_mirrored=args.add_mirrored)
 data_dict_train, data_dict_eval = loader.split_data_dict(data_dict, fill=6)
 any_dict_key = list(data_dict)[0]
 affs_dim = data_dict[any_dict_key]['affective_features'].shape[-1]
@@ -115,11 +118,11 @@ age_dim = 1
 handedness_dim = data_dict[any_dict_key]['Handedness'].shape[-1]
 native_tongue_dim = data_dict[any_dict_key]['Native tongue'].shape[-1]
 
-pr = processor.Processor(args, data_path, data_loader, text_length, num_frames + 2,
+pr = processor.Processor(args, data_path, data_loader, embedding_table.shape[-1], num_frames + 2,
                          affs_dim, num_joints, coords, rots_dim, tag_categories,
                          intended_emotion_dim, intended_polarity_dim,
                          acting_task_dim, gender_dim, age_dim, handedness_dim, native_tongue_dim,
-                         joint_names, joint_parents,
+                         joint_names, joint_parents, word2idx, embedding_table,
                          generate_while_train=False, save_path=base_path, device=device)
 
 # idx = 1302

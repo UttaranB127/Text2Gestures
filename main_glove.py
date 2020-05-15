@@ -98,7 +98,7 @@ data_dict, word2idx, embedding_table,\
                                                              os.path.join(data_path, args.embedding_src),
                                                              frame_drop=args.frame_drop,
                                                              add_mirrored=args.add_mirrored)
-data_dict_train, data_dict_eval = loader.split_data_dict(data_dict, fill=6)
+data_dict_train, data_dict_eval = loader.split_data_dict(data_dict, randomized=False, fill=6)
 any_dict_key = list(data_dict)[0]
 affs_dim = data_dict[any_dict_key]['affective_features'].shape[-1]
 num_joints = data_dict[any_dict_key]['positions'].shape[1]

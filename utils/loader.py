@@ -20,7 +20,8 @@ def split_data_dict(data_dict, eval_size=0.1, randomized=True, fill=1):
     if randomized:
         samples_valid = np.random.choice(samples_all, num_samples_valid, replace=False)
     else:
-        samples_valid = samples_all[-num_samples_valid:]
+        # samples_valid = samples_all[-num_samples_valid:]
+        samples_valid = np.loadtxt('samples_valid.txt').astype(int)
     samples_train = np.setdiff1d(samples_all, samples_valid)
     data_dict_train = dict()
     data_dict_eval = dict()

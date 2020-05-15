@@ -613,10 +613,10 @@ class Processor(object):
                 self.io.print_log('Done.')
 
             # save model and weights
-            if self.loss_updated:
+            if self.loss_updated or epoch % self.args.save_interval == 0:
                 torch.save({'model_dict': self.model.state_dict()},
                            os.path.join(self.args.work_dir, 'epoch_{}_loss_{:.4f}_model.pth.tar'.
-                                        format(epoch, self.best_loss)))
+                                        format(epoch, self.epoch_info['mean_loss'])))
 
                 if self.generate_while_train:
                     self.generate_motion(load_saved_model=False, samples_to_generate=1)

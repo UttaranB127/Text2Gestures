@@ -2,7 +2,7 @@ import argparse
 import os
 import numpy as np
 
-from utils import loader, processor
+from utils import loader, processor_new as processor
 from utils.visualizations import display_animations
 
 import torch
@@ -38,6 +38,8 @@ parser.add_argument('--start-epoch', type=int, default=0, metavar='SE',
                     help='starting epoch of training (default: 0)')
 parser.add_argument('--num-epoch', type=int, default=5000, metavar='NE',
                     help='number of epochs to train (default: 1000)')
+# parser.add_argument('--window-length', type=int, default=1, metavar='WL',
+#                     help='max number of past time steps to take as input to transformer decoder (default: 60)')
 parser.add_argument('--optimizer', type=str, default='Adam', metavar='O',
                     help='optimizer (default: Adam)')
 parser.add_argument('--base-lr', type=float, default=1e-3, metavar='LR',
@@ -88,7 +90,7 @@ args = parser.parse_args()
 device = 'cuda:0'
 randomized = False
 
-args.work_dir = os.path.join(model_path, args.dataset)
+args.work_dir = os.path.join(model_path, args.dataset + '_new')
 if not os.path.exists(args.work_dir):
     os.mkdir(args.work_dir)
 
@@ -134,4 +136,23 @@ pr = processor.Processor(args, data_path, data_loader, text_length, num_frames +
 if args.train:
     pr.train()
 # pr.generate_motion(data_dict_valid['0']['spline'], data_dict_valid['0'])
+k = 0
+index = str(k).zfill(6)
+joint_offsets = torch.from_numpy(data_loader['test'][index]['joints_dict']['joints_offsets_all'][1:])
+# pos = torch.from_numpy(data_loader[index]['positions'])
+# affs = torch.from_numpy(data_loader[index]['affective_features'])
+# quat = torch.cat((self.quats_sos,
+#                   torch.from_numpy(data_loader[index]['rotations']),
+#                   self.quats_eos), dim=0)
+# quat_length = quat.shape[0]
+# quat_valid_idx = torch.zeros(self.T)
+# quat_valid_idx[:quat_length] = 1
+# text = torch.cat((self.text_processor.numericalize(dataset[str(k).zfill(self.zfill)]['Text'])[0],
+#                   torch.from_numpy(np.array([self.text_eos]))))
+# if text[0] != self.text_sos:
+#     text = torch.cat((torch.from_numpy(np.array([self.text_sos])), text))
+# text_length = text.shape[0]
+# text_valid_idx = torch.zeros(self.Z)
+# text_valid_idx[:text_length] = 1
+
 pr.generate_motion(randomized=randomized)

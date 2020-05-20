@@ -4,9 +4,11 @@ import os
 import time
 import torch.optim as optim
 import torch.nn as nn
-from net.T2GNet_glove import T2GNet as T2GNet
+import torchtext as tt
+from net.T2GNet import T2GNet as T2GNet
 
 from torchlight.torchlight.io import IO
+from torchtext.data.utils import get_tokenizer
 # from utils.mocap_dataset import MocapDataset
 from utils.mocap_dataset import MocapDataset
 from utils.Quaternions import Quaternions
@@ -57,7 +59,7 @@ class Processor(object):
 
     def __init__(self, args, data_path, data_loader, Z, T, A, V, C, D, tag_cats,
                  IE, IP, AT, G, AGE, H, NT, joint_names,
-                 joint_parents, word2idx, embedding_table, lower_body_start=15, fill=6, min_train_epochs=20,
+                 joint_parents, lower_body_start=15, fill=6, min_train_epochs=20,
                  generate_while_train=False, save_path=None, device='cuda:0'):
 
         def get_quats_sos_and_eos():
@@ -155,17 +157,24 @@ class Processor(object):
         self.best_loss_epoch = None
         self.min_train_epochs = min_train_epochs
         self.zfill = fill
-        self.word2idx = word2idx
-        self.text_sos = np.int64(self.word2idx['<SOS>'])
-        self.text_eos = np.int64(self.word2idx['<EOS>'])
-        num_tokens = len(self.word2idx)  # the size of vocabulary
-        self.Z = Z  # embedding dimension
+        try:
+            self.text_processor = torch.load('text_processor.pt')
+        except FileNotFoundError:
+            self.text_processor = tt.data.Field(tokenize=get_tokenizer("basic_english"),
+                                                init_token='<sos>',
+                                                eos_token='<eos>',
+                                                lower=True)
+            train_text, eval_text, test_text = tt.datasets.WikiText2.splits(self.text_processor)
+            self.text_processor.build_vocab(train_text, eval_text, test_text)
+        self.text_sos = np.int64(self.text_processor.vocab.stoi['<sos>'])
+        self.text_eos = np.int64(self.text_processor.vocab.stoi['<eos>'])
+        num_tokens = len(self.text_processor.vocab.stoi)  # the size of vocabulary
+        self.Z = Z + 2  # embedding dimension
         num_hidden_units = 200  # the dimension of the feedforward network model in nn.TransformerEncoder
         num_layers = 2  # the number of nn.TransformerEncoderLayer in nn.TransformerEncoder
         num_heads = 2  # the number of heads in the multiheadattention models
         dropout = 0.2  # the dropout value
-        self.model = T2GNet(num_tokens, torch.from_numpy(embedding_table).cuda(),
-                            self.T - 1, self.Z, self.V * self.D, self.D, self.V - 1,
+        self.model = T2GNet(num_tokens, self.T - 1, self.Z, self.V * self.D, self.D, self.V - 1,
                             self.IE, self.IP, self.AT, self.G, self.AGE, self.H, self.NT,
                             num_heads, num_hidden_units, num_layers, dropout).to(device)
 
@@ -283,9 +292,7 @@ class Processor(object):
                 quat_length = quat.shape[0]
                 quat_valid_idx = torch.zeros(self.T)
                 quat_valid_idx[:quat_length] = 1
-                text = torch.cat((torch.tensor([self.word2idx[x] for x in
-                                                [e for e in str.split(dataset[str(k).zfill(self.zfill)]['Text'])
-                                                 if e.isalnum()]]),
+                text = torch.cat((self.text_processor.numericalize(dataset[str(k).zfill(self.zfill)]['Text'])[0],
                                   torch.from_numpy(np.array([self.text_eos]))))
                 if text[0] != self.text_sos:
                     text = torch.cat((torch.from_numpy(np.array([self.text_sos])), text))
@@ -363,9 +370,7 @@ class Processor(object):
             quat_length = quat.shape[0]
             quat_valid_idx = torch.zeros(self.T)
             quat_valid_idx[:quat_length] = 1
-            text = torch.cat((torch.tensor([self.word2idx[x] for x in
-                                            [e for e in str.split(dataset[str(k).zfill(self.zfill)]['Text'])
-                                             if e.isalnum()]]),
+            text = torch.cat((self.text_processor.numericalize(dataset[str(k).zfill(self.zfill)]['Text'])[0],
                               torch.from_numpy(np.array([self.text_eos]))))
             if text[0] != self.text_sos:
                 text = torch.cat((torch.from_numpy(np.array([self.text_sos])), text))
@@ -413,10 +418,9 @@ class Processor(object):
             text, text_valid_idx, intended_emotion, intended_polarity,\
                 acting_task, gender, age, handedness,\
                 native_tongue in self.yield_batch(self.args.batch_size, train_loader):
-            quat_prelude = self.quats_eos.view(1, -1).cuda() \
+            quat_prelude = self.quats_eos.view(1, -1).cuda()\
                 .repeat(self.T - 1, 1).unsqueeze(0).repeat(quat.shape[0], 1, 1).float()
             quat_prelude[:, -1] = quat[:, 0].clone()
-
             self.optimizer.zero_grad()
             with torch.autograd.detect_anomaly():
                 joint_lengths = torch.norm(joint_offsets, dim=-1)
@@ -532,12 +536,13 @@ class Processor(object):
             with torch.no_grad():
                 joint_lengths = torch.norm(joint_offsets, dim=-1)
                 scales, _ = torch.max(joint_lengths, dim=-1)
-                quat_prelude = self.quats_eos.view(1, -1).cuda() \
+                quat_prelude = self.quats_eos.view(1, -1).cuda()\
                     .repeat(self.T - 1, 1).unsqueeze(0).repeat(quat.shape[0], 1, 1).float()
                 quat_prelude[:, -1] = quat[:, 0].clone()
                 quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
                                                            acting_task, gender, age, handedness, native_tongue,
                                                            quat_prelude, joint_lengths / scales[..., None])
+
                 quat_pred_pre_norm = quat_pred_pre_norm.view(quat_pred_pre_norm.shape[0],
                                                              quat_pred_pre_norm.shape[1], -1, self.D)
                 quat_norm_loss = self.args.quat_norm_reg *\

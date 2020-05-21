@@ -418,16 +418,22 @@ class Processor(object):
             text, text_valid_idx, intended_emotion, intended_polarity,\
                 acting_task, gender, age, handedness,\
                 native_tongue in self.yield_batch(self.args.batch_size, train_loader):
-            quat_prelude = self.quats_eos.view(1, -1).cuda()\
-                .repeat(self.T - 1, 1).unsqueeze(0).repeat(quat.shape[0], 1, 1).float()
-            quat_prelude[:, -1] = quat[:, 0].clone()
             self.optimizer.zero_grad()
             with torch.autograd.detect_anomaly():
                 joint_lengths = torch.norm(joint_offsets, dim=-1)
                 scales, _ = torch.max(joint_lengths, dim=-1)
-                quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
-                                                           acting_task, gender, age, handedness, native_tongue,
-                                                           quat_prelude, joint_lengths / scales[..., None])
+                quat_pred = torch.zeros_like(quat)
+                quat_pred_pre_norm = torch.zeros_like(quat)
+                quat_pred[:, 0] = torch.cat(quat_pred.shape[0] * [self.quats_sos]).view(quat_pred[:, 0].shape)
+                text_latent = self.model(text, intended_emotion, intended_polarity,
+                                         acting_task, gender, age, handedness, native_tongue, only_encoder=True)
+                for t in range(1, self.T):
+                    quat_pred_curr, quat_pred_pre_norm_curr =\
+                        self.model(text_latent, quat=quat_pred[:, max(0, t - self.args.window_length):t],
+                                   offset_lengths=joint_lengths / scales[..., None],
+                                   only_decoder=True)
+                    quat_pred[:, t:t + 1] = quat_pred_curr[:, -1:].clone()
+                    quat_pred_pre_norm_curr[:, t:t + 1] = quat_pred_pre_norm_curr[:, -1:].clone()
 
                 quat_pred_pre_norm = quat_pred_pre_norm.view(quat_pred_pre_norm.shape[0],
                                                              quat_pred_pre_norm.shape[1], -1, self.D)
@@ -536,12 +542,18 @@ class Processor(object):
             with torch.no_grad():
                 joint_lengths = torch.norm(joint_offsets, dim=-1)
                 scales, _ = torch.max(joint_lengths, dim=-1)
-                quat_prelude = self.quats_eos.view(1, -1).cuda()\
-                    .repeat(self.T - 1, 1).unsqueeze(0).repeat(quat.shape[0], 1, 1).float()
-                quat_prelude[:, -1] = quat[:, 0].clone()
-                quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
-                                                           acting_task, gender, age, handedness, native_tongue,
-                                                           quat_prelude, joint_lengths / scales[..., None])
+                quat_pred = torch.zeros_like(quat)
+                quat_pred_pre_norm = torch.zeros_like(quat)
+                quat_pred[:, 0] = torch.cat(quat_pred.shape[0] * [self.quats_sos]).view(quat_pred[:, 0].shape)
+                text_latent = self.model(text, intended_emotion, intended_polarity,
+                                         acting_task, gender, age, handedness, native_tongue, only_encoder=True)
+                for t in range(1, self.T):
+                    quat_pred_curr, quat_pred_pre_norm_curr =\
+                        self.model(text_latent, quat=quat_pred[:, 0:t],
+                                   offset_lengths=joint_lengths / scales[..., None],
+                                   only_decoder=True)
+                    quat_pred[:, t:t + 1] = quat_pred_curr[:, -1:].clone()
+                    quat_pred_pre_norm_curr[:, t:t + 1] = quat_pred_pre_norm_curr[:, -1:].clone()
 
                 quat_pred_pre_norm = quat_pred_pre_norm.view(quat_pred_pre_norm.shape[0],
                                                              quat_pred_pre_norm.shape[1], -1, self.D)
@@ -648,11 +660,12 @@ class Processor(object):
         with torch.no_grad():
             joint_lengths = torch.norm(joint_offsets, dim=-1)
             scales, _ = torch.max(joint_lengths, dim=-1)
-            quat_pred = torch.zeros_like(quat)
-            quat_pred[:, 0] = torch.cat(quat_pred.shape[0] * [self.quats_sos]).view(quat_pred[:, 0].shape)
+            quat_prelude = self.quats_eos.view(1, -1).cuda() \
+                .repeat(self.T - 1, 1).unsqueeze(0).repeat(quat.shape[0], 1, 1).float()
+            quat_prelude[:, -1] = quat[:, 0].clone()
             quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
                                                        acting_task, gender, age, handedness, native_tongue,
-                                                       quat[:, :-1], joint_lengths / scales[..., None])
+                                                       quat_prelude, joint_lengths / scales[..., None])
             for s in range(len(quat_pred)):
                 quat_pred[s] = qfix(quat_pred[s].view(quat_pred[s].shape[0],
                                                       self.V, -1)).view(quat_pred[s].shape[0], -1)
@@ -670,7 +683,7 @@ class Processor(object):
             'rotations': quat_pred
         }
         MocapDataset.save_as_bvh(animation_pred,
-                                 dataset_name=self.dataset,
+                                 dataset_name=self.dataset + '_new',
                                  subset_name='test')
         animation = {
             'joint_names': self.joint_names,
@@ -680,7 +693,7 @@ class Processor(object):
             'rotations': quat
         }
         MocapDataset.save_as_bvh(animation,
-                                 dataset_name=self.dataset,
+                                 dataset_name=self.dataset + '_new',
                                  subset_name='gt')
         pos_pred_np = pos_pred.contiguous().view(pos_pred.shape[0],
                                                  pos_pred.shape[1], -1).permute(0, 2, 1).\

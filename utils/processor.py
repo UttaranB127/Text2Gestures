@@ -647,9 +647,13 @@ class Processor(object):
             scales, _ = torch.max(joint_lengths, dim=-1)
             quat_pred = torch.zeros_like(quat)
             quat_pred[:, 0] = torch.cat(quat_pred.shape[0] * [self.quats_sos]).view(quat_pred[:, 0].shape)
-            quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
-                                                       acting_task, gender, age, handedness, native_tongue,
-                                                       quat[:, :-1], joint_lengths / scales[..., None])
+            text_latent = self.model(text, intended_emotion, intended_polarity,
+                                     acting_task, gender, age, handedness, native_tongue, only_encoder=True)
+            for t in range(1, self.T):
+                quat_pred_curr, _ = self.model(text_latent, quat=quat_pred[:, 0:t],
+                                               offset_lengths=joint_lengths / scales[..., None],
+                                               only_decoder=True)
+                quat_pred[:, t:t + 1] = quat_pred_curr[:, -1:].clone()
             for s in range(len(quat_pred)):
                 quat_pred[s] = qfix(quat_pred[s].view(quat_pred[s].shape[0],
                                                       self.V, -1)).view(quat_pred[s].shape[0], -1)

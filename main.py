@@ -96,6 +96,7 @@ data_dict, tag_categories, text_length, num_frames = loader.load_data(data_path,
                                                                       frame_drop=args.frame_drop,
                                                                       add_mirrored=args.add_mirrored)
 data_dict_train, data_dict_eval = loader.split_data_dict(data_dict, fill=6)
+# print(data_dict)
 any_dict_key = list(data_dict)[0]
 affs_dim = data_dict[any_dict_key]['affective_features'].shape[-1]
 num_joints = data_dict[any_dict_key]['positions'].shape[1]

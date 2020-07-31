@@ -172,7 +172,7 @@ class Processor(object):
         self.Z = Z + 2  # embedding dimension
         num_hidden_units = 200  # the dimension of the feedforward network model in nn.TransformerEncoder
         num_layers = 2  # the number of nn.TransformerEncoderLayer in nn.TransformerEncoder
-        num_heads = 2  # the number of heads in the multiheadattention models
+        num_heads = 2  # the number of heads in the multi-head attention models
         dropout = 0.2  # the dropout value
         self.model = T2GNet(num_tokens, self.T - 1, self.Z, self.V * self.D, self.D, self.V - 1,
                             self.IE, self.IP, self.AT, self.G, self.AGE, self.H, self.NT,
@@ -403,9 +403,9 @@ class Processor(object):
                 dataset[str(k).zfill(self.zfill)]['Native tongue'])
 
         return batch_joint_offsets, batch_pos, batch_affs, batch_quat, \
-                batch_quat_valid_idx, batch_text, batch_text_valid_idx, \
-                batch_intended_emotion, batch_intended_polarity, batch_acting_task, \
-                batch_gender, batch_age, batch_handedness, batch_native_tongue
+            batch_quat_valid_idx, batch_text, batch_text_valid_idx, \
+            batch_intended_emotion, batch_intended_polarity, batch_acting_task, \
+            batch_gender, batch_age, batch_handedness, batch_native_tongue
 
     def per_train(self):
 
@@ -660,12 +660,19 @@ class Processor(object):
         with torch.no_grad():
             joint_lengths = torch.norm(joint_offsets, dim=-1)
             scales, _ = torch.max(joint_lengths, dim=-1)
-            quat_prelude = self.quats_eos.view(1, -1).cuda() \
-                .repeat(self.T - 1, 1).unsqueeze(0).repeat(quat.shape[0], 1, 1).float()
-            quat_prelude[:, -1] = quat[:, 0].clone()
-            quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
-                                                       acting_task, gender, age, handedness, native_tongue,
-                                                       quat_prelude, joint_lengths / scales[..., None])
+            quat_pred = torch.zeros_like(quat)
+            quat_pred_pre_norm = torch.zeros_like(quat)
+            quat_pred[:, 0] = torch.cat(quat_pred.shape[0] * [self.quats_sos]).view(quat_pred[:, 0].shape)
+            text_latent = self.model(text, intended_emotion, intended_polarity,
+                                     acting_task, gender, age, handedness, native_tongue, only_encoder=True)
+            for t in range(1, self.T):
+                quat_pred_curr, quat_pred_pre_norm_curr = \
+                    self.model(text_latent, quat=quat_pred[:, 0:t],
+                               offset_lengths=joint_lengths / scales[..., None],
+                               only_decoder=True)
+                quat_pred[:, t:t + 1] = quat_pred_curr[:, -1:].clone()
+                quat_pred_pre_norm_curr[:, t:t + 1] = quat_pred_pre_norm_curr[:, -1:].clone()
+
             for s in range(len(quat_pred)):
                 quat_pred[s] = qfix(quat_pred[s].view(quat_pred[s].shape[0],
                                                       self.V, -1)).view(quat_pred[s].shape[0], -1)

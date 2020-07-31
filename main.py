@@ -26,11 +26,11 @@ parser.add_argument('--frame-drop', type=int, default=2, metavar='FD',
                     help='frame down-sample rate (default: 2)')
 parser.add_argument('--add-mirrored', type=bool, default=False, metavar='AM',
                     help='perform data augmentation by mirroring all the sequences (default: False)')
-parser.add_argument('--train', type=bool, default=False, metavar='T',
+parser.add_argument('--train', type=bool, default=True, metavar='T',
                     help='train the model (default: True)')
 parser.add_argument('--load-last-best', type=bool, default=True, metavar='LB',
                     help='load the most recent best model (default: True)')
-parser.add_argument('--batch-size', type=int, default=128, metavar='B',
+parser.add_argument('--batch-size', type=int, default=4, metavar='B',
                     help='input batch size for training (default: 32)')
 parser.add_argument('--num-worker', type=int, default=4, metavar='W',
                     help='input batch size for training (default: 4)')

@@ -3,6 +3,7 @@ from torch.nn import TransformerDecoder, TransformerDecoderLayer
 from utils.common import *
 from utils.Quaternions_torch import qmul, qeuler, euler_to_quaternion
 
+import cv2
 import math
 import torch
 import torch.nn as nn
@@ -35,26 +36,29 @@ class T2GNet(nn.Module):
 
     def __init__(self, num_tokens, max_time_steps, text_dim, quat_dim, quat_channels,
                  offsets_dim, intended_emotion_dim, intended_polarity_dim, acting_task_dim,
-                 gender_dim, age_dim, handedness_dim, native_tongue_dim, num_heads, num_hidden_units,
-                 num_layers, dropout=0.5):
+                 gender_dim, age_dim, handedness_dim, native_tongue_dim, num_heads_enc, num_heads_dec,
+                 num_hidden_units_enc, num_hidden_units_dec, num_layers_enc, num_layers_dec, dropout=0.5):
         super(T2GNet, self).__init__()
         self.T = max_time_steps
+        self.quat_dim = quat_dim
         self.text_dim = text_dim
         self.quat_channels = quat_channels
         self.text_mask = None
         self.quat_mask = None
         self.text_embedding = nn.Embedding(num_tokens, text_dim)
         self.text_pos_encoder = PositionalEncoding(text_dim, dropout)
-        encoder_layers = TransformerEncoderLayer(text_dim, num_heads, num_hidden_units, dropout)
-        self.transformer_encoder = TransformerEncoder(encoder_layers, num_layers)
+        encoder_layers = TransformerEncoderLayer(text_dim, num_heads_enc, num_hidden_units_enc, dropout)
+        self.transformer_encoder = TransformerEncoder(encoder_layers, num_layers_enc)
         intermediate_dim = int((text_dim + quat_dim) / 2)
-        self.text_embed = nn.Linear(text_dim + intended_emotion_dim + intended_polarity_dim +\
-            acting_task_dim + gender_dim + age_dim + handedness_dim + native_tongue_dim, intermediate_dim)
+        self.text_embed = nn.Linear(text_dim + intended_emotion_dim +
+                                    intended_polarity_dim + acting_task_dim +
+                                    gender_dim + age_dim + handedness_dim + native_tongue_dim,
+                                    intermediate_dim)
         self.text_offsets_to_gestures = nn.Linear(intermediate_dim + offsets_dim, quat_dim)
 
         self.quat_pos_encoder = PositionalEncoding(quat_dim, dropout)
-        decoder_layers = TransformerDecoderLayer(quat_dim, num_heads, num_hidden_units, dropout)
-        self.transformer_decoder = TransformerDecoder(decoder_layers, num_layers)
+        decoder_layers = TransformerDecoderLayer(quat_dim, num_heads_dec, num_hidden_units_dec, dropout)
+        self.transformer_decoder = TransformerDecoder(decoder_layers, num_layers_dec)
         self.temporal_smoothing = nn.ModuleList((
             nn.Conv1d(max_time_steps, max_time_steps, 3, padding=1),
             nn.Conv1d(max_time_steps, max_time_steps, 3, padding=1),
@@ -178,6 +182,8 @@ class T2GNet(nn.Module):
             text_pos_enc = self.text_pos_encoder(text_embed)
             text_latent = self.transformer_encoder(text_pos_enc.permute(1, 0, 2), self.text_mask)
             time_steps = text_latent.shape[0]
+            mask = self.text_mask.detach().cpu().numpy()
+            mask[mask == -np.inf] = 255
             text_latent = self.text_embed(torch.cat((
                 text_latent,
                 intended_emotion.unsqueeze(0).repeat(time_steps, 1, 1),

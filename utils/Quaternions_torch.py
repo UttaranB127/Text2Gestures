@@ -150,24 +150,41 @@ def qfix(q):
     Expects a tensor of shape (L, J, 4), where L is the sequence length and J is the number of joints.
     Returns a tensor of the same shape.
     """
-    assert len(q.shape) == 3
+    assert len(q.shape) == 3 or len(q.shape) == 4
     assert q.shape[-1] == 4
 
-    if torch.is_tensor(q):
-        result = q.clone()
-        dot_products = torch.sum(q[1:] * q[:-1], dim=2)
-        mask = dot_products < 0
-        mask = (torch.cumsum(mask, dim=0) % 2).type(torch.bool)
-    elif isinstance(q, np.ndarray):
-        result = q.copy()
-        dot_products = np.sum(q[1:] * q[:-1], axis=2)
-        mask = dot_products < 0
-        mask = (np.cumsum(mask, axis=0) % 2).astype(np.bool)
-    else:
-        print('Data type must be either numpy ndarray or torch tensor')
-        exit(1)
-    result[1:][mask] *= -1
-    return result
+    if len(q.shape) == 3:
+        if torch.is_tensor(q):
+            result = q.clone()
+            dot_products = torch.sum(q[1:] * q[:-1], dim=-1)
+            mask = dot_products < 0
+            mask = (torch.cumsum(mask, dim=0) % 2).type(torch.bool)
+        elif isinstance(q, np.ndarray):
+            result = q.copy()
+            dot_products = np.sum(q[1:] * q[:-1], axis=-1)
+            mask = dot_products < 0
+            mask = (np.cumsum(mask, axis=0) % 2).astype(np.bool)
+        else:
+            print('Data type must be either numpy ndarray or torch tensor')
+            exit(1)
+        result[1:][mask] *= -1
+        return result
+    if len(q.shape) == 4:
+        if torch.is_tensor(q):
+            result = q.clone()
+            dot_products = torch.sum(q[:, 1:] * q[:, :-1], dim=-1)
+            mask = dot_products < 0
+            mask = (torch.cumsum(mask, dim=1) % 2).type(torch.bool)
+        elif isinstance(q, np.ndarray):
+            result = q.copy()
+            dot_products = np.sum(q[:, 1:] * q[:, :-1], axis=-1)
+            mask = dot_products < 0
+            mask = (np.cumsum(mask, axis=1) % 2).astype(np.bool)
+        else:
+            print('Data type must be either numpy ndarray or torch tensor')
+            exit(1)
+        result[:, 1:][mask] *= -1
+        return result
 
 
 def expmap_to_quaternion_np(e):

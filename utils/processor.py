@@ -149,8 +149,8 @@ class Processor(object):
         # self.quats_sos = torch.from_numpy(Quaternions.id(self.V).qs).unsqueeze(0)
         # self.quats_eos = torch.from_numpy(Quaternions.from_euler(
         #     np.tile([np.pi / 2., 0, 0], (self.V, 1))).qs).unsqueeze(0)
-        self.recons_loss_func = nn.L1Loss()
-        self.affs_loss_func = nn.L1Loss()
+        self.recons_loss_func = nn.MSELoss()
+        self.affs_loss_func = nn.MSELoss()
         self.best_loss = np.inf
         self.loss_updated = False
         self.step_epochs = [math.ceil(float(self.args.num_epoch * x)) for x in self.args.step]
@@ -170,13 +170,17 @@ class Processor(object):
         self.text_eos = np.int64(self.text_processor.vocab.stoi['<eos>'])
         num_tokens = len(self.text_processor.vocab.stoi)  # the size of vocabulary
         self.Z = Z + 2  # embedding dimension
-        num_hidden_units = 200  # the dimension of the feedforward network model in nn.TransformerEncoder
-        num_layers = 2  # the number of nn.TransformerEncoderLayer in nn.TransformerEncoder
-        num_heads = 2  # the number of heads in the multiheadattention models
+        num_hidden_units_enc = 216  # the dimension of the feedforward network model in nn.TransformerEncoder
+        num_hidden_units_dec = 512  # the dimension of the feedforward network model in nn.TransformerDecoder
+        num_layers_enc = 2  # the number of nn.TransformerEncoderLayer in nn.TransformerEncoder
+        num_layers_dec = 4  # the number of nn.TransformerEncoderLayer in nn.TransformerDecoder
+        num_heads_enc = 6  # the number of heads in the multi-head attention in nn.TransformerEncoder
+        num_heads_dec = self.V  # the number of heads in the multi-head attention in nn.TransformerDecoder
         dropout = 0.2  # the dropout value
         self.model = T2GNet(num_tokens, self.T - 1, self.Z, self.V * self.D, self.D, self.V - 1,
                             self.IE, self.IP, self.AT, self.G, self.AGE, self.H, self.NT,
-                            num_heads, num_hidden_units, num_layers, dropout).to(device)
+                            num_heads_enc, num_heads_dec, num_hidden_units_enc, num_hidden_units_dec,
+                            num_layers_enc, num_layers_dec, dropout).to(device)
 
         # generate
         self.generate_while_train = generate_while_train
@@ -261,6 +265,7 @@ class Processor(object):
         batch_pos = torch.zeros((batch_size, self.T, self.V, self.C)).cuda()
         batch_affs = torch.zeros((batch_size, self.T, self.A)).cuda()
         batch_quat = torch.zeros((batch_size, self.T, self.V * self.D)).cuda()
+        batch_quat_sos = torch.zeros((batch_size, self.T, self.V * self.D)).cuda()
         batch_quat_valid_idx = torch.zeros((batch_size, self.T)).cuda()
         batch_text = torch.zeros((batch_size, self.Z)).cuda().long()
         batch_text_valid_idx = torch.zeros((batch_size, self.Z)).cuda()
@@ -289,6 +294,7 @@ class Processor(object):
                 quat = torch.cat((self.quats_sos,
                                   torch.from_numpy(dataset[str(k).zfill(self.zfill)]['rotations']),
                                   self.quats_eos), dim=0)
+                quat_sos = self.quats_sos.repeat((self.T, 1, 1))
                 quat_length = quat.shape[0]
                 quat_valid_idx = torch.zeros(self.T)
                 quat_valid_idx[:quat_length] = 1
@@ -307,6 +313,7 @@ class Processor(object):
                 batch_affs[i, affs.shape[0]:] = affs[-1:].clone()
                 batch_quat[i, :quat_length] = quat.view(quat_length, -1)
                 batch_quat[i, quat_length:] = quat[-1:].view(1, -1).clone()
+                batch_quat_sos[i] = quat_sos.view(self.T, -1)
                 batch_quat_valid_idx[i] = quat_valid_idx
                 batch_text[i, :text_length] = text
                 batch_text_valid_idx[i] = text_valid_idx
@@ -324,7 +331,7 @@ class Processor(object):
                 batch_native_tongue[i] = torch.from_numpy(
                     dataset[str(k).zfill(self.zfill)]['Native tongue'])
 
-            yield batch_joint_offsets, batch_pos, batch_affs, batch_quat, \
+            yield batch_joint_offsets, batch_pos, batch_affs, batch_quat, batch_quat_sos, \
                 batch_quat_valid_idx, batch_text, batch_text_valid_idx, \
                 batch_intended_emotion, batch_intended_polarity, batch_acting_task, \
                 batch_gender, batch_age, batch_handedness, batch_native_tongue
@@ -407,6 +414,64 @@ class Processor(object):
                 batch_intended_emotion, batch_intended_polarity, batch_acting_task, \
                 batch_gender, batch_age, batch_handedness, batch_native_tongue
 
+    def calculate_loss(self, quat, quat_pred, quat_pred_pre_norm, quat_valid_idx, pos, affs, joint_offsets):
+        quat_fixed = qfix(quat.contiguous().view(quat.shape[0],
+                                                 quat.shape[1], -1,
+                                                 self.D)).contiguous().view(quat.shape[0],
+                                                                            quat.shape[1], -1)
+        quat_pred = qfix(quat_pred.contiguous().view(quat_pred.shape[0],
+                                                     quat_pred.shape[1], -1,
+                                                     self.D)).contiguous().view(quat_pred.shape[0],
+                                                                                quat_pred.shape[1], -1)
+
+        quat_pred_pre_norm = quat_pred_pre_norm.view(quat_pred_pre_norm.shape[0],
+                                                     quat_pred_pre_norm.shape[1], -1, self.D)
+        quat_norm_loss = self.args.quat_norm_reg * \
+                         torch.mean((torch.sum(quat_pred_pre_norm ** 2, dim=-1) - 1) ** 2)
+
+        quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat_fixed[:, 1:],
+                                                           quat_valid_idx[:, 1:],
+                                                           self.V, self.D,
+                                                           self.lower_body_start,
+                                                           self.args.upper_body_weight)
+        quat_loss *= self.args.quat_reg
+
+        root_pos = torch.zeros(quat_pred.shape[0], quat_pred.shape[1], self.C).cuda()
+        pos_pred = MocapDataset.forward_kinematics(quat_pred.contiguous().view(
+            quat_pred.shape[0], quat_pred.shape[1], -1, self.D), root_pos, self.joint_parents,
+            torch.cat((root_pos[:, 0:1], joint_offsets), dim=1).unsqueeze(1))
+        affs_pred = MocapDataset.get_mpi_affective_features(pos_pred)
+
+        # row_sums = quat_valid_idx.sum(1, keepdim=True) * self.D * self.V
+        # row_sums[row_sums == 0.] = 1.
+
+        shifted_pos = pos - pos[:, :, 0:1]
+        shifted_pos_pred = pos_pred - pos_pred[:, :, 0:1]
+
+        recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos[:, 1:])
+        recons_arms = self.recons_loss_func(shifted_pos_pred[:, :, 7:15], shifted_pos[:, 1:, 7:15])
+        # recons_loss = torch.abs(shifted_pos_pred - shifted_pos[:, 1:]).sum(-1)
+        # recons_loss = self.args.upper_body_weight * (recons_loss[:, :, :self.lower_body_start].sum(-1)) +\
+        #               recons_loss[:, :, self.lower_body_start:].sum(-1)
+        # recons_loss = self.args.recons_reg *\
+        #               torch.mean((recons_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
+        #
+        # recons_derv_loss = torch.abs(shifted_pos_pred[:, 1:] - shifted_pos_pred[:, :-1] -
+        #                              shifted_pos[:, 2:] + shifted_pos[:, 1:-1]).sum(-1)
+        # recons_derv_loss = self.args.upper_body_weight *\
+        #     (recons_derv_loss[:, :, :self.lower_body_start].sum(-1)) +\
+        #                    recons_derv_loss[:, :, self.lower_body_start:].sum(-1)
+        # recons_derv_loss = 2. * self.args.recons_reg *\
+        #                    torch.mean((recons_derv_loss * quat_valid_idx[:, 2:]).sum(-1) / row_sums)
+        #
+        # affs_loss = torch.abs(affs[:, 1:] - affs_pred).sum(-1)
+        # affs_loss = self.args.affs_reg * torch.mean((affs_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
+        affs_loss = self.affs_loss_func(affs_pred, affs[:, 1:])
+
+        total_loss = quat_norm_loss + quat_loss + recons_loss + affs_loss
+        # train_loss = quat_norm_loss + quat_loss + recons_loss + recons_derv_loss + affs_loss
+        return total_loss
+
     def per_train(self):
 
         self.model.train()
@@ -414,7 +479,7 @@ class Processor(object):
         batch_loss = 0.
         N = 0.
 
-        for joint_offsets, pos, affs, quat, quat_valid_idx,\
+        for joint_offsets, pos, affs, quat, quat_sos, quat_valid_idx,\
             text, text_valid_idx, intended_emotion, intended_polarity,\
                 acting_task, gender, age, handedness,\
                 native_tongue in self.yield_batch(self.args.batch_size, train_loader):
@@ -425,53 +490,9 @@ class Processor(object):
                 scales, _ = torch.max(joint_lengths, dim=-1)
                 quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
                                                            acting_task, gender, age, handedness, native_tongue,
-                                                           quat[:, :-1], joint_lengths / scales[..., None])
-
-                quat_pred_pre_norm = quat_pred_pre_norm.view(quat_pred_pre_norm.shape[0],
-                                                             quat_pred_pre_norm.shape[1], -1, self.D)
-                quat_norm_loss = self.args.quat_norm_reg *\
-                                 torch.mean((torch.sum(quat_pred_pre_norm ** 2, dim=-1) - 1) ** 2)
-
-                quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat[:, 1:],
-                                                                   quat_valid_idx[:, 1:],
-                                                                   self.V, self.D,
-                                                                   self.lower_body_start,
-                                                                   self.args.upper_body_weight)
-                quat_loss *= self.args.quat_reg
-
-                root_pos = torch.zeros(quat_pred.shape[0], quat_pred.shape[1], self.C).cuda()
-                pos_pred = MocapDataset.forward_kinematics(quat_pred.contiguous().view(
-                    quat_pred.shape[0], quat_pred.shape[1], -1, self.D), root_pos, self.joint_parents,
-                    torch.cat((root_pos[:, 0:1], joint_offsets), dim=1).unsqueeze(1))
-                affs_pred = MocapDataset.get_mpi_affective_features(pos_pred)
-
-                # row_sums = quat_valid_idx.sum(1, keepdim=True) * self.D * self.V
-                # row_sums[row_sums == 0.] = 1.
-
-                shifted_pos = pos - pos[:, :, 0:1]
-                shifted_pos_pred = pos_pred - pos_pred[:, :, 0:1]
-
-                recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos[:, 1:])
-                # recons_loss = torch.abs(shifted_pos_pred - shifted_pos[:, 1:]).sum(-1)
-                # recons_loss = self.args.upper_body_weight * (recons_loss[:, :, :self.lower_body_start].sum(-1)) +\
-                #               recons_loss[:, :, self.lower_body_start:].sum(-1)
-                # recons_loss = self.args.recons_reg *\
-                #               torch.mean((recons_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
-                #
-                # recons_derv_loss = torch.abs(shifted_pos_pred[:, 1:] - shifted_pos_pred[:, :-1] -
-                #                              shifted_pos[:, 2:] + shifted_pos[:, 1:-1]).sum(-1)
-                # recons_derv_loss = self.args.upper_body_weight *\
-                #     (recons_derv_loss[:, :, :self.lower_body_start].sum(-1)) +\
-                #                    recons_derv_loss[:, :, self.lower_body_start:].sum(-1)
-                # recons_derv_loss = 2. * self.args.recons_reg *\
-                #                    torch.mean((recons_derv_loss * quat_valid_idx[:, 2:]).sum(-1) / row_sums)
-                #
-                # affs_loss = torch.abs(affs[:, 1:] - affs_pred).sum(-1)
-                # affs_loss = self.args.affs_reg * torch.mean((affs_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
-                affs_loss = self.affs_loss_func(affs_pred, affs[:, 1:])
-
-                train_loss = quat_norm_loss + quat_loss + recons_loss + affs_loss
-                # train_loss = quat_norm_loss + quat_loss + recons_loss + recons_derv_loss + affs_loss
+                                                           quat_sos[:, :-1], joint_lengths / scales[..., None])
+                train_loss = self.calculate_loss(quat, quat_pred, quat_pred_pre_norm,
+                                                 quat_valid_idx, pos, affs, joint_offsets)
                 train_loss.backward()
                 # nn.utils.clip_grad_norm_(self.model.parameters(), self.args.gradient_clip)
                 self.optimizer.step()
@@ -480,7 +501,7 @@ class Processor(object):
             #     'joint_names': self.joint_names,
             #     'joint_offsets': joint_offsets,
             #     'joint_parents': self.joint_parents,
-            #     'positions': pos_pred,
+            #     'positions': shifted_pos_pred,
             #     'rotations': quat_pred
             # }
             # MocapDataset.save_as_bvh(animation_pred,
@@ -490,12 +511,26 @@ class Processor(object):
             #     'joint_names': self.joint_names,
             #     'joint_offsets': joint_offsets,
             #     'joint_parents': self.joint_parents,
-            #     'positions': pos,
+            #     'positions': shifted_pos,
             #     'rotations': quat
             # }
             # MocapDataset.save_as_bvh(animation,
             #                          dataset_name=self.dataset,
             #                          subset_name='gt')
+            #
+            # quat_qfix_np = qfix(quat.contiguous().view(quat.shape[0], quat.shape[1], -1, self.D)).contiguous().view(
+            #     quat.shape[0],
+            #     quat.shape[1],
+            #     -1).detach().cpu().numpy()
+            # quat_np = quat.detach().cpu().numpy()
+            # quat_pred_np = quat_pred.detach().cpu().numpy()
+            #
+            # pos_pred_np = np.swapaxes(
+            #     np.reshape(shifted_pos_pred.detach().cpu().numpy(), (shifted_pos_pred.shape[0], self.T - 1, -1)), 2, 1)
+            # pos_np = np.swapaxes(np.reshape(shifted_pos.detach().cpu().numpy(), (shifted_pos.shape[0], self.T, -1)), 2, 1)
+
+            # display_animations(pos_pred_np, self.joint_parents,
+            #                    save=True, dataset_name=self.dataset, subset_name='test', overwrite=True)
 
             # Compute statistics
             batch_loss += train_loss.item()
@@ -515,11 +550,6 @@ class Processor(object):
         self.adjust_lr()
         self.adjust_tf()
 
-        # pos_pred_np = np.swapaxes(np.reshape(pos_pred.detach().cpu().numpy(),
-        #                                      (pos_pred.shape[0], self.T - 1, -1)), 2, 1)
-        # display_animations(pos_pred_np, self.joint_parents,
-        #                    save=True, dataset_name=self.dataset, subset_name='test', overwrite=True)
-
     def per_test(self):
 
         self.model.eval()
@@ -527,7 +557,7 @@ class Processor(object):
         eval_loss = 0.
         N = 0.
 
-        for joint_offsets, pos, affs, quat, quat_valid_idx, \
+        for joint_offsets, pos, affs, quat, quat_sos, quat_valid_idx, \
             text, text_valid_idx, intended_emotion, intended_polarity, \
             acting_task, gender, age, handedness, \
                 native_tongue in self.yield_batch(self.args.batch_size, test_loader):
@@ -535,56 +565,12 @@ class Processor(object):
                 joint_lengths = torch.norm(joint_offsets, dim=-1)
                 scales, _ = torch.max(joint_lengths, dim=-1)
                 quat_pred = torch.zeros_like(quat)
-                quat_pred_pre_norm = torch.zeros_like(quat)
                 quat_pred[:, 0] = torch.cat(quat_pred.shape[0] * [self.quats_sos]).view(quat_pred[:, 0].shape)
                 quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
                                                            acting_task, gender, age, handedness, native_tongue,
-                                                           quat[:, :-1], joint_lengths / scales[..., None])
-                quat_pred_pre_norm = quat_pred_pre_norm.view(quat_pred_pre_norm.shape[0],
-                                                             quat_pred_pre_norm.shape[1], -1, self.D)
-                quat_norm_loss = self.args.quat_norm_reg *\
-                                 torch.mean((torch.sum(quat_pred_pre_norm ** 2, dim=-1) - 1) ** 2)
-
-                quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat[:, 1:],
-                                                                   quat_valid_idx[:, 1:],
-                                                                   self.V, self.D,
-                                                                   self.lower_body_start,
-                                                                   self.args.upper_body_weight)
-                quat_loss *= self.args.quat_reg
-
-                root_pos = torch.zeros(quat_pred.shape[0], quat_pred.shape[1], self.C).cuda()
-                pos_pred = MocapDataset.forward_kinematics(quat_pred.contiguous().view(
-                    quat_pred.shape[0], quat_pred.shape[1], -1, self.D), root_pos, self.joint_parents,
-                    torch.cat((root_pos[:, 0:1], joint_offsets), dim=1).unsqueeze(1))
-                affs_pred = MocapDataset.get_mpi_affective_features(pos_pred)
-
-                row_sums = quat_valid_idx.sum(1, keepdim=True) * self.D * self.V
-                row_sums[row_sums == 0.] = 1.
-
-                shifted_pos = pos - pos[:, :, 0:1]
-                shifted_pos_pred = pos_pred - pos_pred[:, :, 0:1]
-
-                recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos[:, 1:])
-                # recons_loss = torch.abs(shifted_pos_pred[:, 1:] - shifted_pos[:, 1:]).sum(-1)
-                # recons_loss = self.args.upper_body_weight * (recons_loss[:, :, :self.lower_body_start].sum(-1)) + \
-                #               recons_loss[:, :, self.lower_body_start:].sum(-1)
-                # recons_loss = self.args.recons_reg * torch.mean(
-                #     (recons_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
-                #
-                # recons_derv_loss = torch.abs(shifted_pos_pred[:, 2:] - shifted_pos_pred[:, 1:-1] -
-                #                              shifted_pos[:, 2:] + shifted_pos[:, 1:-1]).sum(-1)
-                # recons_derv_loss = self.args.upper_body_weight * \
-                #                    (recons_derv_loss[:, :, :self.lower_body_start].sum(-1)) + \
-                #                    recons_derv_loss[:, :, self.lower_body_start:].sum(-1)
-                # recons_derv_loss = 2. * self.args.recons_reg * \
-                #                    torch.mean((recons_derv_loss * quat_valid_idx[:, 2:]).sum(-1) / row_sums)
-                #
-                # affs_loss = torch.abs(affs[:, 1:] - affs_pred[:, 1:]).sum(-1)
-                # affs_loss = self.args.affs_reg * torch.mean((affs_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
-                affs_loss = self.affs_loss_func(affs_pred, affs[:, 1:])
-
-                eval_loss += quat_norm_loss + quat_loss + recons_loss + affs_loss
-                # eval_loss += quat_norm_loss + quat_loss + recons_loss + recons_derv_loss + affs_loss
+                                                           quat_sos[:, :-1], joint_lengths / scales[..., None])
+                eval_loss = self.calculate_loss(quat, quat_pred, quat_pred_pre_norm,
+                                                quat_valid_idx, pos, affs, joint_offsets)
                 N += quat.shape[0]
 
         eval_loss /= N

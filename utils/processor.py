@@ -150,7 +150,7 @@ class Processor(object):
         # self.quats_sos = torch.from_numpy(Quaternions.id(self.V).qs).unsqueeze(0)
         # self.quats_eos = torch.from_numpy(Quaternions.from_euler(
         #     np.tile([np.pi / 2., 0, 0], (self.V, 1))).qs).unsqueeze(0)
-        self.recons_loss_func = nn.MSELoss()
+        self.recons_loss_func = nn.L1Loss()
         self.affs_loss_func = nn.MSELoss()
         self.best_loss = np.inf
         self.loss_updated = False
@@ -540,7 +540,7 @@ class Processor(object):
             #     -1).detach().cpu().numpy()
             # quat_np = quat.detach().cpu().numpy()
             # quat_pred_np = quat_pred.detach().cpu().numpy()
-
+            #
             # pos_pred_np = np.swapaxes(
             #     np.reshape(shifted_pos_pred.detach().cpu().numpy(), (shifted_pos_pred.shape[0], self.T - 1, -1)), 2, 1)
             # pos_np = np.swapaxes(np.reshape(shifted_pos.detach().cpu().numpy(), (shifted_pos.shape[0], self.T, -1)), 2, 1)

@@ -534,15 +534,11 @@ class Processor(object):
             #                          dataset_name=self.dataset,
             #                          subset_name='gt')
             #
-            # quat_qfix_np = qfix(quat.contiguous().view(quat.shape[0], quat.shape[1], -1, self.D)).contiguous().view(
-            #     quat.shape[0],
-            #     quat.shape[1],
-            #     -1).detach().cpu().numpy()
             # quat_np = quat.detach().cpu().numpy()
             # quat_pred_np = quat_pred.detach().cpu().numpy()
             #
             # pos_pred_np = np.swapaxes(
-            #     np.reshape(shifted_pos_pred.detach().cpu().numpy(), (shifted_pos_pred.shape[0], self.T - 1, -1)), 2, 1)
+            #     np.reshape(shifted_pos_pred.detach().cpu().numpy(), (shifted_pos_pred.shape[0], self.T, -1)), 2, 1)
             # pos_np = np.swapaxes(np.reshape(shifted_pos.detach().cpu().numpy(), (shifted_pos.shape[0], self.T, -1)), 2, 1)
             #
             # display_animations(pos_pred_np, self.joint_parents,

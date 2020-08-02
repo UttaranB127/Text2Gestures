@@ -30,10 +30,10 @@ parser.add_argument('--train', type=bool, default=True, metavar='T',
                     help='train the model (default: True)')
 parser.add_argument('--load-last-best', type=bool, default=True, metavar='LB',
                     help='load the most recent best model (default: True)')
-parser.add_argument('--batch-size', type=int, default=12, metavar='B',
+parser.add_argument('--batch-size', type=int, default=16, metavar='B',
                     help='input batch size for training (default: 32)')
 parser.add_argument('--num-worker', type=int, default=4, metavar='W',
-                    help='input batch size for training (default: 4)')
+                    help='number of threads? (default: 4)')
 parser.add_argument('--start-epoch', type=int, default=0, metavar='SE',
                     help='starting epoch of training (default: 0)')
 parser.add_argument('--num-epoch', type=int, default=5000, metavar='NE',

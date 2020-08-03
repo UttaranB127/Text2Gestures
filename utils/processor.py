@@ -60,7 +60,7 @@ class Processor(object):
     def __init__(self, args, data_path, data_loader, Z, T, A, V, C, D, tag_cats,
                  IE, IP, AT, G, AGE, H, NT, joint_names,
                  joint_parents, lower_body_start=15, fill=6, min_train_epochs=20,
-                 generate_while_train=False, save_path=None, device='cuda:0'):
+                 generate_while_train=False, save_path=None):
 
         def get_quats_sos_and_eos():
             quats_sos_and_eos_file = os.path.join(data_path, 'quats_sos_and_eos.npz')
@@ -116,7 +116,6 @@ class Processor(object):
             'Yrotation': 'y',
             'Zrotation': 'z'
         }
-        self.device = device
         self.data_loader = data_loader
         self.result = dict()
         self.iter_info = dict()
@@ -181,7 +180,10 @@ class Processor(object):
         self.model = T2GNet(num_tokens, self.T - 1, self.Z, self.V * self.D, self.D, self.V - 1,
                             self.IE, self.IP, self.AT, self.G, self.AGE, self.H, self.NT,
                             num_heads_enc, num_heads_dec, num_hidden_units_enc, num_hidden_units_dec,
-                            num_layers_enc, num_layers_dec, dropout).to(device)
+                            num_layers_enc, num_layers_dec, dropout)
+        if self.args.use_multiple_gpus and torch.cuda.device_count() > 1:
+            self.model = nn.DataParallel(self.model)
+        self.model.to(torch.cuda.current_device())
 
         # generate
         self.generate_while_train = generate_while_train
@@ -206,11 +208,11 @@ class Processor(object):
         self.tf = self.args.base_tr
 
     def process_data(self, data, poses, quat, trans, affs):
-        data = data.float().to(self.device)
-        poses = poses.float().to(self.device)
-        quat = quat.float().to(self.device)
-        trans = trans.float().to(self.device)
-        affs = affs.float().to(self.device)
+        data = data.float().cuda()
+        poses = poses.float().cuda()
+        quat = quat.float().cuda()
+        trans = trans.float().cuda()
+        affs = affs.float().cuda()
         return data, poses, quat, trans, affs
 
     def load_best_model(self, ):

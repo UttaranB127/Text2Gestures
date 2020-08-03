@@ -182,8 +182,12 @@ class Processor(object):
                             num_heads_enc, num_heads_dec, num_hidden_units_enc, num_hidden_units_dec,
                             num_layers_enc, num_layers_dec, dropout)
         if self.args.use_multiple_gpus and torch.cuda.device_count() > 1:
+            self.args.batch_size *= torch.cuda.device_count()
             self.model = nn.DataParallel(self.model)
         self.model.to(torch.cuda.current_device())
+        print('Total training data:\t\t{}'.format(len(self.data_loader['train'])))
+        print('Total validation data:\t\t{}'.format(len(self.data_loader['test'])))
+        print('Training with batch size:\t{}'.format(self.args.batch_size))
 
         # generate
         self.generate_while_train = generate_while_train

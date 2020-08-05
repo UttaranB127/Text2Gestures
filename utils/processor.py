@@ -128,7 +128,8 @@ class Processor(object):
 
         # model
         self.T = T + 2
-        self.T_steps = 120
+        self.T_steps = 240
+        self.drift_len = 240
         self.A = A
         self.V = V
         self.C = C
@@ -232,9 +233,10 @@ class Processor(object):
         return best_model_found
 
     def adjust_lr(self):
-        self.lr = self.lr * self.args.lr_decay
-        for param_group in self.optimizer.param_groups:
-            param_group['lr'] = self.lr
+        if self.meta_info['epoch'] % 50 == 0:
+            self.lr = self.lr * self.args.lr_decay
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = self.lr
 
     def adjust_tf(self):
         if self.meta_info['epoch'] > 20:
@@ -473,7 +475,8 @@ class Processor(object):
                                                                quat_valid_idx[:, 1:],
                                                                self.V, self.D,
                                                                self.lower_body_start,
-                                                               self.args.upper_body_weight)
+                                                               self.args.upper_body_weight,
+                                                               drift_len=self.drift_len)
             # quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat_fixed[:, 1:],
             #                                                    quat_valid_idx[:, 1:],
             #                                                    self.V, self.D,
@@ -493,8 +496,12 @@ class Processor(object):
             shifted_pos = pos - pos[:, :, 0:1]
             shifted_pos_pred = pos_pred - pos_pred[:, :, 0:1]
 
-            recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos)
+            recons_loss = self.recons_loss_func(shifted_pos_pred[:, 1:], shifted_pos[:, 1:])
             recons_arms = self.recons_loss_func(shifted_pos_pred[:, :, 7:15], shifted_pos[:, :, 7:15])
+            recons_derv_loss = torch.zeros_like(recons_loss)
+            for idx in range(1, self.drift_len):
+                recons_derv_loss += self.recons_loss_func(shifted_pos_pred[:, idx:] - shifted_pos_pred[:, :-idx],
+                                                          shifted_pos[:, idx:] - shifted_pos[:, :-idx])
             # recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos[:, 1:])
             # recons_arms = self.recons_loss_func(shifted_pos_pred[:, :, 7:15], shifted_pos[:, 1:, 7:15])
             # recons_loss = torch.abs(shifted_pos_pred - shifted_pos[:, 1:]).sum(-1)
@@ -516,7 +523,7 @@ class Processor(object):
             # affs_loss = self.affs_loss_func(affs_pred, affs[:, 1:])
             affs_loss = self.affs_loss_func(affs_pred, affs)
 
-            total_loss = quat_norm_loss + quat_loss + recons_loss + affs_loss
+            total_loss = quat_norm_loss + quat_loss + quat_derv_loss + recons_loss + recons_derv_loss + affs_loss
             # train_loss = quat_norm_loss + quat_loss + recons_loss + recons_derv_loss + affs_loss
 
             # animation_pred = {

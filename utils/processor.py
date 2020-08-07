@@ -129,7 +129,7 @@ class Processor(object):
         # model
         self.T = T + 2
         self.T_steps = 240
-        self.drift_len = 240
+        self.drift_len = 24
         self.A = A
         self.V = V
         self.C = C

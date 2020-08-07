@@ -15,9 +15,8 @@ def quat_angle_loss(quats_pred, quats_target, quat_valid_idx, V, D,
     angle_distances[:, :, :lower_body_start] = upper_body_weights * angle_distances[:, :, :lower_body_start]
     angle_derv_distances = torch.zeros_like(angle_distances)
     for idx in range(1, drift_len):
-        angle_derv_distances[:, idx - 1:] += torch.remainder(euler_pred[:, idx:] - euler_pred[:, :-idx] -
-                                                             euler_target[:, idx:] + euler_target[:, :-idx] +
-                                                             np.pi, 2 * np.pi) - np.pi
+        angle_derv_distances[:, idx - 1:] += euler_pred[:, idx:] - euler_pred[:, :-idx] -\
+                                             euler_target[:, idx:] + euler_target[:, :-idx]
         # angle_derv_distances += euler_pred[:, 1:] - euler_pred[:, :-1] - euler_target[:, 1:] + euler_target[:, :-1]
     angle_derv_distances[:, :, :lower_body_start] =\
         upper_body_weights * angle_derv_distances[:, :, :lower_body_start]

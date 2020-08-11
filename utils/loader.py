@@ -91,7 +91,7 @@ def load_data(_path, dataset, frame_drop=1, add_mirrored=False):
                         tag_data.append(line)
                 bvh_file = os.path.join(data_path, 'bvh/' + tag_data[id] + '.bvh')
                 names, parents, offsets,\
-                positions, rotations = MocapDataset.load_bvh(bvh_file, channel_map)
+                    positions, rotations = MocapDataset.load_bvh(bvh_file, channel_map)
                 positions_down_sampled = positions[1::frame_drop]
                 rotations_down_sampled = rotations[1::frame_drop]
                 if len(positions_down_sampled) > max_time_steps:

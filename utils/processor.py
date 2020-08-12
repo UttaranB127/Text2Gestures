@@ -656,7 +656,7 @@ class Processor(object):
             prefix_length = self.prefix_length
         return [var[s, :prefix_length].unsqueeze(0) for s in range(var.shape[0])]
 
-    def generate_motion(self, load_saved_model=True, samples_to_generate=10, max_steps=300, randomized=True):
+    def generate_motion(self, load_saved_model=True, samples_to_generate=10, randomized=True):
 
         if load_saved_model:
             self.load_best_model()
@@ -697,7 +697,8 @@ class Processor(object):
             'joint_offsets': joint_offsets,
             'joint_parents': self.joint_parents,
             'positions': pos_pred,
-            'rotations': quat_pred
+            'rotations': quat_pred,
+            'valid_idx': quat_valid_idx
         }
         MocapDataset.save_as_bvh(animation_pred,
                                  dataset_name=self.dataset,
@@ -710,7 +711,8 @@ class Processor(object):
             'joint_offsets': joint_offsets,
             'joint_parents': self.joint_parents,
             'positions': shifted_pos,
-            'rotations': quat
+            'rotations': quat,
+            'valid_idx': quat_valid_idx
         }
         MocapDataset.save_as_bvh(animation,
                                  dataset_name=self.dataset,

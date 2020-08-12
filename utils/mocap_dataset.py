@@ -395,9 +395,13 @@ class MocapDataset:
                 os.makedirs(dir_name)
 
         num_samples = animations['rotations'].shape[0]
-        num_frames = animations['rotations'].shape[1]
+        num_frames_max = animations['rotations'].shape[1]
+        if 'valid_idx' in animations.keys():
+            num_frames = torch.sum(animations['valid_idx'], dim=1).int().detach().cpu().numpy()
+        else:
+            num_frames = num_frames_max * np.ones(num_samples, dtype=int)
         num_joints = len(animations['joint_parents'])
-        save_quats = animations['rotations'].contiguous().view(num_samples, num_frames,
+        save_quats = animations['rotations'].contiguous().view(num_samples, num_frames_max,
                                                                num_joints, -1).detach().cpu().numpy()
         for s in range(num_samples):
             trajectory = animations['positions'][s, :, 0].detach().cpu().numpy()
@@ -429,7 +433,7 @@ class MocapDataset:
                                                                joint_offsets, animations['joint_parents'],
                                                                joint, string, tabs, rot_string)
                 f.write(string)
-                f.write('MOTION\nFrames: {}\nFrame Time: {}\n'.format(num_frames + 1, frame_time))
+                f.write('MOTION\nFrames: {}\nFrame Time: {}\n'.format(num_frames[s] + include_default_pose, frame_time))
                 if include_default_pose:
                     string = str(trajectory[0, 0]) + ' ' +\
                         str(trajectory[0, 1]) + ' ' + \
@@ -437,7 +441,7 @@ class MocapDataset:
                     for j in range(num_joints * 3):
                         string += ' ' + '{:.6f}'.format(0)
                     f.write(string + '\n')
-                for t in range(num_frames):
+                for t in range(num_frames[s]):
                     string = str(trajectory[t, 0]) + ' ' + \
                              str(trajectory[t, 1]) + ' ' + \
                              str(trajectory[t, 2])

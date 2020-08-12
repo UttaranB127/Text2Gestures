@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore")
 base_path = os.path.dirname(os.path.realpath(__file__))
 data_path = os.path.join(base_path, '../data')
 
-model_path = os.path.join(base_path, 'model')
+model_path = os.path.join(base_path, 'models')
 if not os.path.exists(model_path):
     os.mkdir(model_path)
 
@@ -32,7 +32,7 @@ parser.add_argument('--use-multiple-gpus', type=bool, default=True, metavar='T',
                     help='use multiple GPUs if available (default: True)')
 parser.add_argument('--load-last-best', type=bool, default=True, metavar='LB',
                     help='load the most recent best model (default: True)')
-parser.add_argument('--batch-size', type=int, default=12, metavar='B',
+parser.add_argument('--batch-size', type=int, default=8, metavar='B',
                     help='input batch size for training (default: 32)')
 parser.add_argument('--num-worker', type=int, default=4, metavar='W',
                     help='number of threads? (default: 4)')
@@ -44,7 +44,7 @@ parser.add_argument('--num-epoch', type=int, default=5000, metavar='NE',
 #                     help='max number of past time steps to take as input to transformer decoder (default: 60)')
 parser.add_argument('--optimizer', type=str, default='Adam', metavar='O',
                     help='optimizer (default: Adam)')
-parser.add_argument('--base-lr', type=float, default=1e-3, metavar='LR',
+parser.add_argument('--base-lr', type=float, default=5e-3, metavar='LR',
                     help='base learning rate (default: 1e-3)')
 parser.add_argument('--base-tr', type=float, default=1., metavar='TR',
                     help='base teacher rate (default: 1.0)')

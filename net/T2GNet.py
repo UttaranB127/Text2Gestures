@@ -60,8 +60,9 @@ class T2GNet(nn.Module):
         decoder_layers = TransformerDecoderLayer(quat_dim, num_heads_dec, num_hidden_units_dec, dropout)
         self.transformer_decoder = TransformerDecoder(decoder_layers, num_layers_dec)
         self.temporal_smoothing = nn.ModuleList((
-            nn.Conv1d(max_time_steps, max_time_steps, 5, padding=1),
-            nn.Conv1d(max_time_steps, max_time_steps, 5, padding=1),
+            # nn.Conv1d(max_time_steps, max_time_steps, 5, padding=1),
+            # nn.Conv1d(max_time_steps, max_time_steps, 5, padding=1),
+            nn.Conv1d(max_time_steps, max_time_steps, 3, padding=1),
             nn.Conv1d(max_time_steps, max_time_steps, 3, padding=1),
         ))
         self.decoder = nn.Linear(text_dim, num_tokens)

@@ -352,30 +352,32 @@ class MocapDataset:
 
     @staticmethod
     def save_as_bvh(animations, dataset_name=None, subset_name=None, save_file_paths=None,
-                    fill=6, frame_time=0.032):
+                    include_default_pose=True, fill=6, frame_time=0.032):
         '''
         Saves an animations as a BVH file
 
         Parameters
         ----------
-        animations: Dict containing the joint names, offsets, parents, positions, and rotations
+        :param animations: Dict containing the joint names, offsets, parents, positions, and rotations
             Animation to be saved.
 
-        dataset_name: str
+        :param dataset_name: str
             Name of the dataset, e.g., mpi.
 
-        subset_name: str
+        :param subset_name: str
             Name of the subset, e.g., gt, epoch_200.
 
-        save_file_paths: str
+        :param save_file_paths: str
             Containing directories of the bvh files to be saved.
             If the bvh files exist, they are overwritten.
             If this is None, then the files are saved in numerical order 0, 1, 2, ...
 
-        fill: int
+        :param include_default_pose: boolean
+            If true, include the default pose at the beginning
+        :param fill: int
             Zero padding for file name, if save_file_paths is None. Otherwise, it is not used.
 
-        frame_time: float
+        :param frame_time: float
             Time duration of each frame.
         '''
 
@@ -428,12 +430,13 @@ class MocapDataset:
                                                                joint, string, tabs, rot_string)
                 f.write(string)
                 f.write('MOTION\nFrames: {}\nFrame Time: {}\n'.format(num_frames + 1, frame_time))
-                string = str(trajectory[0, 0]) + ' ' +\
-                    str(trajectory[0, 1]) + ' ' + \
-                    str(trajectory[0, 2])
-                for j in range(num_joints * 3):
-                    string += ' ' + '{:.6f}'.format(0)
-                f.write(string + '\n')
+                if include_default_pose:
+                    string = str(trajectory[0, 0]) + ' ' +\
+                        str(trajectory[0, 1]) + ' ' + \
+                        str(trajectory[0, 2])
+                    for j in range(num_joints * 3):
+                        string += ' ' + '{:.6f}'.format(0)
+                    f.write(string + '\n')
                 for t in range(num_frames):
                     string = str(trajectory[t, 0]) + ' ' + \
                              str(trajectory[t, 1]) + ' ' + \

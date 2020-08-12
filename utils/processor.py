@@ -170,12 +170,18 @@ class Processor(object):
         self.text_eos = np.int64(self.text_processor.vocab.stoi['<eos>'])
         num_tokens = len(self.text_processor.vocab.stoi)  # the size of vocabulary
         self.Z = Z + 2  # embedding dimension
-        num_hidden_units_enc = 216  # the dimension of the feedforward network model in nn.TransformerEncoder
-        num_hidden_units_dec = 512  # the dimension of the feedforward network model in nn.TransformerDecoder
+        num_hidden_units_enc = 200  # the dimension of the feedforward network model in nn.TransformerEncoder
+        num_hidden_units_dec = 200  # the dimension of the feedforward network model in nn.TransformerDecoder
         num_layers_enc = 2  # the number of nn.TransformerEncoderLayer in nn.TransformerEncoder
-        num_layers_dec = 4  # the number of nn.TransformerEncoderLayer in nn.TransformerDecoder
-        num_heads_enc = 6  # the number of heads in the multi-head attention in nn.TransformerEncoder
-        num_heads_dec = self.V  # the number of heads in the multi-head attention in nn.TransformerDecoder
+        num_layers_dec = 2  # the number of nn.TransformerEncoderLayer in nn.TransformerDecoder
+        num_heads_enc = 2  # the number of heads in the multi-head attention in nn.TransformerEncoder
+        num_heads_dec = 2  # the number of heads in the multi-head attention in nn.TransformerDecoder
+        # num_hidden_units_enc = 216  # the dimension of the feedforward network model in nn.TransformerEncoder
+        # num_hidden_units_dec = 512  # the dimension of the feedforward network model in nn.TransformerDecoder
+        # num_layers_enc = 2  # the number of nn.TransformerEncoderLayer in nn.TransformerEncoder
+        # num_layers_dec = 4  # the number of nn.TransformerEncoderLayer in nn.TransformerDecoder
+        # num_heads_enc = 6  # the number of heads in the multi-head attention in nn.TransformerEncoder
+        # num_heads_dec = self.V  # the number of heads in the multi-head attention in nn.TransformerDecoder
         dropout = 0.2  # the dropout value
         self.model = T2GNet(num_tokens, self.T - 1, self.Z, self.V * self.D, self.D, self.V - 1,
                             self.IE, self.IP, self.AT, self.G, self.AGE, self.H, self.NT,
@@ -666,13 +672,17 @@ class Processor(object):
             scales, _ = torch.max(joint_lengths, dim=-1)
             quat_pred = torch.zeros_like(quat)
             quat_pred[:, 0] = torch.cat(quat_pred.shape[0] * [self.quats_sos]).view(quat_pred[:, 0].shape)
-            text_latent = self.model(text, intended_emotion, intended_polarity,
-                                     acting_task, gender, age, handedness, native_tongue, only_encoder=True)
-            for t in range(1, self.T):
-                quat_pred_curr, _ = self.model(text_latent, quat=quat_pred[:, 0:t],
-                                               offset_lengths=joint_lengths / scales[..., None],
-                                               only_decoder=True)
-                quat_pred[:, t:t + 1] = quat_pred_curr[:, -1:].clone()
+            quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
+                                                       acting_task, gender, age, handedness, native_tongue,
+                                                       quat[:, :-1], joint_lengths / scales[..., None])
+            # text_latent = self.model(text, intended_emotion, intended_polarity,
+            #                          acting_task, gender, age, handedness, native_tongue, only_encoder=True)
+            # for t in range(1, self.T):
+            #     quat_pred_curr, _ = self.model(text_latent, quat=quat_pred[:, 0:t],
+            #                                    offset_lengths=joint_lengths / scales[..., None],
+            #                                    only_decoder=True)
+            #     quat_pred[:, t:t + 1] = quat_pred_curr[:, -1:].clone()
+
             for s in range(len(quat_pred)):
                 quat_pred[s] = qfix(quat_pred[s].view(quat_pred[s].shape[0],
                                                       self.V, -1)).view(quat_pred[s].shape[0], -1)
@@ -691,20 +701,24 @@ class Processor(object):
         }
         MocapDataset.save_as_bvh(animation_pred,
                                  dataset_name=self.dataset,
-                                 subset_name='test')
+                                 subset_name='test',
+                                 include_default_pose=False)
+
+        shifted_pos = pos - pos[:, :, 0:1]
         animation = {
             'joint_names': self.joint_names,
             'joint_offsets': joint_offsets,
             'joint_parents': self.joint_parents,
-            'positions': pos,
+            'positions': shifted_pos,
             'rotations': quat
         }
         MocapDataset.save_as_bvh(animation,
                                  dataset_name=self.dataset,
-                                 subset_name='gt')
-        pos_pred_np = pos_pred.contiguous().view(pos_pred.shape[0],
-                                                 pos_pred.shape[1], -1).permute(0, 2, 1).\
-            detach().cpu().numpy()
+                                 subset_name='gt',
+                                 include_default_pose=False)
+        # pos_pred_np = pos_pred.contiguous().view(pos_pred.shape[0],
+        #                                          pos_pred.shape[1], -1).permute(0, 2, 1).\
+        #     detach().cpu().numpy()
         # display_animations(pos_pred_np, self.joint_parents, save=True,
         #                    dataset_name=self.dataset,
         #                    subset_name='epoch_' + str(self.best_loss_epoch),

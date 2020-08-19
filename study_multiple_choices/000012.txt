@@ -1,4 +1,0 @@
-Joyous
-Neutral
-Angry
-Sad

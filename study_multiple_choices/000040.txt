@@ -1,0 +1,4 @@
+Relieved
+Neutral
+Sad
+Joyous

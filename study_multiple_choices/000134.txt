@@ -1,0 +1,4 @@
+Joyous
+Surprised
+Neutral
+Angry

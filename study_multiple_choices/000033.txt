@@ -1,0 +1,4 @@
+Sad
+Neutral
+Ashamed
+Joyous

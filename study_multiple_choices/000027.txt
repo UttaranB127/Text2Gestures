@@ -1,0 +1,4 @@
+Disgusted
+Amused
+Neutral
+Afraid

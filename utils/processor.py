@@ -32,24 +32,37 @@ def find_all_substr(a_str, sub):
         start += len(sub)  # use start += 1 to find overlapping matches
 
 
-def get_best_epoch_and_loss(path_to_model_files):
+def get_epoch_and_loss(path_to_model_files, epoch='best'):
     all_models = os.listdir(path_to_model_files)
     if len(all_models) < 2:
         return '', None, np.inf
-    loss_list = -1. * np.ones(len(all_models))
+    if epoch == 'best':
+        loss_list = -1. * np.ones(len(all_models))
+        for i, model in enumerate(all_models):
+            loss_val = str.split(model, '_')
+            if len(loss_val) > 1:
+                loss_list[i] = float(loss_val[3])
+        if len(loss_list) < 3:
+            best_model = all_models[np.argwhere(loss_list == min([n for n in loss_list if n > 0]))[0, 0]]
+        else:
+            loss_idx = np.argpartition(loss_list, 2)
+            best_model = all_models[loss_idx[1]]
+        all_underscores = list(find_all_substr(best_model, '_'))
+        # return model name, best loss
+        return best_model, int(best_model[all_underscores[0] + 1:all_underscores[1]]),\
+            float(best_model[all_underscores[2] + 1:all_underscores[3]])
+    assert isinstance(epoch, int)
+    found_model = None
     for i, model in enumerate(all_models):
-        loss_val = str.split(model, '_')
-        if len(loss_val) > 1:
-            loss_list[i] = float(loss_val[3])
-    if len(loss_list) < 3:
-        best_model = all_models[np.argwhere(loss_list == min([n for n in loss_list if n > 0]))[0, 0]]
-    else:
-        loss_idx = np.argpartition(loss_list, 2)
-        best_model = all_models[loss_idx[1]]
-    all_underscores = list(find_all_substr(best_model, '_'))
-    # return model name, best loss
-    return best_model, int(best_model[all_underscores[0] + 1:all_underscores[1]]),\
-           float(best_model[all_underscores[2] + 1:all_underscores[3]])
+        model_epoch = str.split(model, '_')
+        if len(model_epoch) > 1 and epoch == int(model_epoch[1]):
+            found_model = model
+            break
+    if found_model is None:
+        return '', None, np.inf
+    all_underscores = list(find_all_substr(found_model, '_'))
+    return found_model, int(found_model[all_underscores[0] + 1:all_underscores[1]]),\
+        float(found_model[all_underscores[2] + 1:all_underscores[3]])
 
 
 class Processor(object):
@@ -225,17 +238,20 @@ class Processor(object):
         affs = affs.float().cuda()
         return data, poses, quat, trans, affs
 
-    def load_best_model(self, ):
+    def load_model_at_epoch(self, epoch='best'):
         model_name, self.best_loss_epoch, self.best_loss =\
-            get_best_epoch_and_loss(self.args.work_dir)
-        best_model_found = False
+            get_epoch_and_loss(self.args.work_dir, epoch=epoch)
+        model_found = False
         try:
             loaded_vars = torch.load(os.path.join(self.args.work_dir, model_name))
             self.model.load_state_dict(loaded_vars['model_dict'])
-            best_model_found = True
+            model_found = True
         except (FileNotFoundError, IsADirectoryError):
-            print('No saved model found.')
-        return best_model_found
+            if epoch == 'best':
+                print('Warning! No saved model found.')
+            else:
+                print('Warning! No saved model found at epoch {:d}.'.format(epoch))
+        return model_found
 
     def adjust_lr(self):
         self.lr = self.lr * self.args.lr_decay
@@ -624,9 +640,18 @@ class Processor(object):
 
     def train(self):
 
-        if self.args.load_last_best:
-            best_model_found = self.load_best_model()
-            self.args.start_epoch = self.best_loss_epoch if best_model_found else 0
+        if self.args.load_last:
+            model_found = self.load_model_at_epoch(epoch=self.args.start_epoch)
+            if not model_found and self.args.start_epoch is not 'best':
+                print('Warning! Trying to load best known model: '.format(self.args.start_epoch), end='')
+                model_found = self.load_model_at_epoch(epoch='best')
+                self.args.start_epoch = self.best_loss_epoch if model_found else 0
+                print('loaded.')
+                if not model_found:
+                    print('Warning! Starting at epoch 0')
+                    self.args.start_epoch = 0
+        else:
+            self.args.start_epoch = 0
         for epoch in range(self.args.start_epoch, self.args.num_epoch):
             self.meta_info['epoch'] = epoch
 
@@ -656,10 +681,10 @@ class Processor(object):
             prefix_length = self.prefix_length
         return [var[s, :prefix_length].unsqueeze(0) for s in range(var.shape[0])]
 
-    def generate_motion(self, load_saved_model=True, samples_to_generate=10, randomized=True):
+    def generate_motion(self, load_saved_model=True, samples_to_generate=10, randomized=True, epoch='best'):
 
         if load_saved_model:
-            self.load_best_model()
+            self.load_model_at_epoch(epoch=epoch)
         self.model.eval()
         test_loader = self.data_loader['test']
 
@@ -708,7 +733,7 @@ class Processor(object):
         }
         MocapDataset.save_as_bvh(animation_pred,
                                  dataset_name=self.dataset,
-                                 subset_name='test',
+                                 subset_name='test_epoch_{}'.format(epoch),
                                  include_default_pose=False)
 
         shifted_pos = pos - pos[:, :, 0:1]
@@ -720,10 +745,11 @@ class Processor(object):
             'rotations': quat,
             'valid_idx': quat_valid_idx
         }
-        MocapDataset.save_as_bvh(animation,
-                                 dataset_name=self.dataset,
-                                 subset_name='gt',
-                                 include_default_pose=False)
+
+        # MocapDataset.save_as_bvh(animation,
+        #                          dataset_name=self.dataset,
+        #                          subset_name='gt',
+        #                          include_default_pose=False)
         # pos_pred_np = pos_pred.contiguous().view(pos_pred.shape[0],
         #                                          pos_pred.shape[1], -1).permute(0, 2, 1).\
         #     detach().cpu().numpy()

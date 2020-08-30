@@ -232,4 +232,4 @@ joint_offsets = torch.from_numpy(data_loader['test'][index]['joints_dict']['join
 # text_valid_idx = torch.zeros(self.Z)
 # text_valid_idx[:text_length] = 1
 
-pr.generate_motion(samples_to_generate=len(data_loader['test']), randomized=randomized)
+pr.generate_motion(samples_to_generate=len(data_loader['test']), randomized=randomized, epoch=1000)

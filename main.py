@@ -3,6 +3,7 @@ import os
 import random
 import warnings
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
@@ -100,6 +101,29 @@ data_dict, tag_categories, text_length, num_frames = loader.load_data(data_path,
                                                                       add_mirrored=args.add_mirrored)
 data_dict_train, data_dict_eval = loader.split_data_dict(data_dict, randomized=False, fill=6)
 any_dict_key = list(data_dict)[0]
+
+# for key in list(data_dict.keys()):
+#     aff = data_dict[key]['affective_features']
+#     for idx in range(aff.shape[-1]):
+#         plt.plot(aff[:, idx])
+#         plt.title(str(data_dict[key]['Text']))
+#         plt_dir = '../plots/aff_{:03d}'.format(idx)
+#         os.makedirs(plt_dir, exist_ok=True)
+#         plt.savefig(os.path.join(plt_dir, '{}_v_{:0.3f}_a_{:0.3f}_d_{:0.3f}.png'.format(
+#             key,
+#             data_dict[key]['Intended emotion VAD'][0],
+#             data_dict[key]['Intended emotion VAD'][1],
+#             data_dict[key]['Intended emotion VAD'][2])))
+#         plt.clf()
+
+from sklearn.manifold import TSNE
+X = np.array([[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 1]])
+X_embedded = TSNE(n_components=2).fit_transform(X)
+plt.clf()
+for el in X_embedded:
+    plt.plot(el[0], el[1], marker='.', markersize=100)
+plt.show()
+
 affs_dim = data_dict[any_dict_key]['affective_features'].shape[-1]
 num_joints = data_dict[any_dict_key]['positions'].shape[1]
 coords = data_dict[any_dict_key]['positions'].shape[2]
@@ -119,7 +143,6 @@ handedness_dim = data_dict[any_dict_key]['Handedness'].shape[-1]
 native_tongue_dim = data_dict[any_dict_key]['Native tongue'].shape[-1]
 
 for emo_idx, emotion in enumerate(tag_categories[2]):
-    print(emotion)
     data_points_intended = []
     data_points_perceived = []
     data_genders_intended = []
@@ -132,10 +155,6 @@ for emo_idx, emotion in enumerate(tag_categories[2]):
         if data_dict_eval[key]['Perceived category'][emo_idx] == 1:
             data_points_perceived.append(data_idx)
             data_genders_perceived.append(tag_categories[5][np.where(data_dict_eval[key]['Gender'])[0][0]])
-    print(data_points_intended)
-    print(data_genders_intended)
-    print(data_points_perceived)
-    print(data_genders_perceived)
 
 # trim: 17, 20, 142
 selected_female = [2, 6, 8, 12, 17, 20, 22, 27, 33, 34, 35, 37, 46, 50, 60, 62, 70,
@@ -149,13 +168,18 @@ selected_all += [m for m in selected_male]
 
 choices_dir = os.path.join(base_path, 'study_multiple_choices')
 os.makedirs(choices_dir, exist_ok=True)
+
+shortlisted = [5, 14, 34, 50]
+selected_all.sort()
 for sl, sel_idx in enumerate(selected_all):
     key = str(sel_idx).zfill(6)
+    text = data_dict_eval[key]['Text']
     gender = tag_categories[5][np.where(data_dict_eval[key]['Gender'])[0][0]]
+    handedness = tag_categories[7][np.where(data_dict_eval[key]['Handedness'])[0][0]]
     intended_emotion = tag_categories[0][np.where(data_dict_eval[key]['Intended emotion'])[0][0]]
     perceived_emotion = tag_categories[2][np.where(data_dict_eval[key]['Perceived category'])[0][0]]
-    assert isinstance(intended_emotion, str)
-    assert isinstance(perceived_emotion, str)
+    print('{}\t{}\t{}\t{}\t{}\t{}'.format(sel_idx, intended_emotion[:3],
+                                         perceived_emotion[:3], gender, handedness, text))
     other_emotions = set(tag_categories[0]) - {intended_emotion, perceived_emotion}
 
     if intended_emotion == perceived_emotion:
@@ -232,4 +256,4 @@ joint_offsets = torch.from_numpy(data_loader['test'][index]['joints_dict']['join
 # text_valid_idx = torch.zeros(self.Z)
 # text_valid_idx[:text_length] = 1
 
-pr.generate_motion(samples_to_generate=len(data_loader['test']), randomized=randomized, epoch=1000)
+pr.generate_motion(samples_to_generate=len(data_loader['test']), randomized=randomized)

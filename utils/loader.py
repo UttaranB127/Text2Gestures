@@ -5,12 +5,37 @@ import glob
 import numpy as np
 import os
 
+from nltk.stem.porter import PorterStemmer
 from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
 from utils.mocap_dataset import MocapDataset
 
 # torch
 import torch
+
+nrc_vad_lexicon_file = '../data/NRC-VAD-Lexicon-Aug2018Release/NRC-VAD-Lexicon.txt'
+nrc_vad_lexicon = {}
+with open(nrc_vad_lexicon_file, 'r') as nf:
+    heading = nf.readline()
+    lines = nf.readlines()
+    for line in lines:
+        line_split = line.split('\t')
+        lexeme = line_split[0]
+        v = float(line_split[1])
+        a = float(line_split[2])
+        d = float(line_split[3].split('\n')[0])
+        nrc_vad_lexicon[lexeme] = np.array([v, a, d])
+porter_stemmer = PorterStemmer()
+
+
+def get_vad(lexeme_raw):
+    lexeme_lower = lexeme_raw.lower()
+    lexeme_stemmed = porter_stemmer.stem(lexeme_lower)
+    if lexeme_lower in nrc_vad_lexicon.keys():
+        return nrc_vad_lexicon[lexeme_lower]
+    if lexeme_stemmed in nrc_vad_lexicon.keys():
+        return nrc_vad_lexicon[lexeme_stemmed]
+    return np.zeros(3)
 
 
 def split_data_dict(data_dict, eval_size=0.1, randomized=True, fill=1):
@@ -114,6 +139,16 @@ def load_data(_path, dataset, frame_drop=1, add_mirrored=False):
                 for tag_index, tag_name in enumerate(relevant_tags):
                     if tag_name.lower() == 'text':
                         data_dict[tag_data[id]][tag_name] = tag_data[tag_names.index(tag_name)]
+                        text_vad = []
+                        for lexeme in data_dict[tag_data[id]][tag_name].split(' '):
+                            if lexeme.isalpha():
+                                if len(lexeme) == 1 and not (lexeme.lower() is 'a' or lexeme.lower() is 'i'):
+                                    continue
+                                text_vad.append(get_vad(lexeme))
+                        try:
+                            data_dict[tag_data[id]][tag_name + ' VAD'] = np.stack(text_vad)
+                        except ValueError:
+                            data_dict[tag_data[id]][tag_name + ' VAD'] = np.zeros((0, 3))
                         text_length = len(data_dict[tag_data[id]][tag_name])
                         if text_length > max_text_length:
                             max_text_length = text_length
@@ -128,6 +163,8 @@ def load_data(_path, dataset, frame_drop=1, add_mirrored=False):
                     else:
                         categories = tag_categories[tag_index]
                     data_dict[tag_data[id]][tag_name] = to_one_hot(tag_data[tag_names.index(tag_name)], categories)
+                    if tag_name is 'Intended emotion' or tag_name is 'Perceived category':
+                        data_dict[tag_data[id]][tag_name + ' VAD'] = get_vad(tag_data[tag_names.index(tag_name)])
                 print('\rData file not found. Processing file {}/{}: {:3.2f}%'.format(
                     data_counter + 1, num_files, data_counter * 100. / num_files), end='')
             print('\rData file not found. Processing files: done. Saving...', end='')

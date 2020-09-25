@@ -688,6 +688,7 @@ class Processor(object):
         self.model.eval()
         test_loader = self.data_loader['test']
 
+        start_time = time.time()
         joint_offsets, pos, affs, quat, quat_valid_idx, \
             text, text_valid_idx, perceived_emotion, perceived_polarity, \
             acting_task, gender, age, handedness, \
@@ -697,6 +698,7 @@ class Processor(object):
             scales, _ = torch.max(joint_lengths, dim=-1)
             quat_pred = torch.zeros_like(quat)
             quat_pred[:, 0] = torch.cat(quat_pred.shape[0] * [self.quats_sos]).view(quat_pred[:, 0].shape)
+
             quat_pred, quat_pred_pre_norm = self.model(text, perceived_emotion, perceived_polarity,
                                                        acting_task, gender, age, handedness, native_tongue,
                                                        quat[:, :-1], joint_lengths / scales[..., None])
@@ -735,7 +737,8 @@ class Processor(object):
                                  dataset_name=self.dataset,
                                  subset_name='test_epoch_{}'.format(epoch),
                                  include_default_pose=False)
-
+        end_time = time.time()
+        print('Time taken: {} secs.'.format(end_time - start_time))
         shifted_pos = pos - pos[:, :, 0:1]
         animation = {
             'joint_names': self.joint_names,
@@ -745,6 +748,7 @@ class Processor(object):
             'rotations': quat,
             'valid_idx': quat_valid_idx
         }
+
 
         # MocapDataset.save_as_bvh(animation,
         #                          dataset_name=self.dataset,

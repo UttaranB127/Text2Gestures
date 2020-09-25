@@ -8,7 +8,6 @@ import utils.constant as constant
 
 from nltk.stem.porter import PorterStemmer
 from scipy.io import wavfile
-from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
 
 from utils.mocap_dataset import MocapDataset
@@ -27,6 +26,8 @@ with open(nrc_vad_lexicon_file, 'r') as nf:
         d = float(line_split[3].split('\n')[0])
         nrc_vad_lexicon[lexeme] = np.array([v, a, d])
 porter_stemmer = PorterStemmer()
+
+
 tts_engine = pyttsx3.init()
 
 
@@ -81,6 +82,8 @@ def get_gesture_splits(sentence, words, num_frames, fps):
 
     if os.path.exists(audio_file):
         os.remove(audio_file)
+
+    return splits
 
 
 def split_data_dict(data_dict, eval_size=0.1, randomized=True, fill=1):
@@ -194,9 +197,11 @@ def load_data(_path, dataset, frame_drop=1, add_mirrored=False):
                                 text_vad.append(get_vad(lexeme))
                         try:
                             data_dict[tag_data[id]][tag_name + ' VAD'] = np.stack(text_vad)
-                            get_gesture_splits(data_dict[tag_data[id]][tag_name], words,
-                                               len(data_dict[tag_data[id]]['positions']),
-                                               base_fps / frame_drop)
+                            data_dict[tag_data[id]]['gesture_splits'] =\
+                                get_gesture_splits(data_dict[tag_data[id]][tag_name], words,
+                                                   len(data_dict[tag_data[id]]['positions']),
+                                                   base_fps / frame_drop)
+                            temp = 1
                         except ValueError:
                             data_dict[tag_data[id]][tag_name + ' VAD'] = np.zeros((0, 3))
                         text_length = len(data_dict[tag_data[id]][tag_name])

@@ -83,7 +83,7 @@ def get_gesture_splits(sentence, words, num_frames, fps):
     if os.path.exists(audio_file):
         os.remove(audio_file)
 
-    return splits
+    return int(best_rate), splits
 
 
 def split_data_dict(data_dict, eval_size=0.1, randomized=True, fill=1):
@@ -197,7 +197,8 @@ def load_data(_path, dataset, frame_drop=1, add_mirrored=False):
                                 text_vad.append(get_vad(lexeme))
                         try:
                             data_dict[tag_data[id]][tag_name + ' VAD'] = np.stack(text_vad)
-                            data_dict[tag_data[id]]['gesture_splits'] =\
+                            data_dict[tag_data[id]]['best_tts_rate'],\
+                                data_dict[tag_data[id]]['gesture_splits'] =\
                                 get_gesture_splits(data_dict[tag_data[id]][tag_name], words,
                                                    len(data_dict[tag_data[id]]['positions']),
                                                    base_fps / frame_drop)

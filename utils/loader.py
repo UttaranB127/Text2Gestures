@@ -201,7 +201,6 @@ def load_data(_path, dataset, frame_drop=1, add_mirrored=False):
                                 get_gesture_splits(data_dict[tag_data[id]][tag_name], words,
                                                    len(data_dict[tag_data[id]]['positions']),
                                                    base_fps / frame_drop)
-                            temp = 1
                         except ValueError:
                             data_dict[tag_data[id]][tag_name + ' VAD'] = np.zeros((0, 3))
                         text_length = len(data_dict[tag_data[id]][tag_name])

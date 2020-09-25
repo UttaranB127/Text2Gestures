@@ -1,0 +1,4 @@
+Disgusted
+Sad
+Neutral
+Joyous

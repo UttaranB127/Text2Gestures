@@ -1,0 +1,4 @@
+Angry
+Surprised
+Ashamed
+Neutral

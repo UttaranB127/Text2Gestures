@@ -1,0 +1,4 @@
+Joyous
+Disgusted
+Surprised
+Sad

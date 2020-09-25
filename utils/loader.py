@@ -1,17 +1,18 @@
 # sys
-import utils.constant as constant
-import csv
 import glob
 import numpy as np
 import os
+import pyttsx3
+
+import utils.constant as constant
 
 from nltk.stem.porter import PorterStemmer
+from scipy.io import wavfile
 from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
+
 from utils.mocap_dataset import MocapDataset
 
-# torch
-import torch
 
 nrc_vad_lexicon_file = '../data/NRC-VAD-Lexicon-Aug2018Release/NRC-VAD-Lexicon.txt'
 nrc_vad_lexicon = {}
@@ -26,6 +27,7 @@ with open(nrc_vad_lexicon_file, 'r') as nf:
         d = float(line_split[3].split('\n')[0])
         nrc_vad_lexicon[lexeme] = np.array([v, a, d])
 porter_stemmer = PorterStemmer()
+tts_engine = pyttsx3.init()
 
 
 def get_vad(lexeme_raw):
@@ -36,6 +38,49 @@ def get_vad(lexeme_raw):
     if lexeme_stemmed in nrc_vad_lexicon.keys():
         return nrc_vad_lexicon[lexeme_stemmed]
     return np.zeros(3)
+
+
+def record_and_load_audio(audio_file, text, rate, trimmed=False):
+    tts_engine.setProperty('rate', rate)
+    tts_engine.save_to_file(text, audio_file)
+    tts_engine.runAndWait()
+    fs, audio_data = wavfile.read(audio_file)
+    audio_data = np.trim_zeros(audio_data)
+    if trimmed:
+        audio_data = np.trim_zeros(audio_data)
+    return fs, audio_data
+
+
+def get_gesture_splits(sentence, words, num_frames, fps):
+    audio_file = 'temp.mp3'
+    best_rate = 50
+    least_diff = np.inf
+    for rate in range(50, 200):
+        fs, audio_data = record_and_load_audio(audio_file, sentence, rate, trimmed=True)
+        diff = np.abs(len(audio_data) / fs - num_frames / fps)
+        if diff < least_diff:
+            least_diff = np.copy(diff)
+            best_rate = np.copy(rate)
+        elif diff > least_diff:
+            break
+    fs, audio_data = record_and_load_audio(audio_file, sentence, best_rate, trimmed=True)
+    sentence_frames = len(audio_data)
+    word_frames = []
+    fs_s = []
+    total_word_frames = 0
+    for word in words:
+        if len(word) > 0:
+            fs, audio_data = record_and_load_audio(audio_file, word, best_rate, trimmed=True)
+            fs_s.append(fs)
+            word_frames.append(len(audio_data))
+            total_word_frames += len(audio_data)
+    sampling_ratio = sentence_frames / total_word_frames
+    splits = [0]
+    for fs, w in zip(fs_s, word_frames):
+        splits.append(int(np.ceil(splits[-1] + w * sampling_ratio * fps / fs)))
+
+    if os.path.exists(audio_file):
+        os.remove(audio_file)
 
 
 def split_data_dict(data_dict, eval_size=0.1, randomized=True, fill=1):
@@ -116,7 +161,7 @@ def load_data(_path, dataset, frame_drop=1, add_mirrored=False):
                         tag_data.append(line)
                 bvh_file = os.path.join(data_path, 'bvh/' + tag_data[id] + '.bvh')
                 names, parents, offsets,\
-                    positions, rotations = MocapDataset.load_bvh(bvh_file, channel_map)
+                    positions, rotations, base_fps = MocapDataset.load_bvh(bvh_file, channel_map)
                 positions_down_sampled = positions[1::frame_drop]
                 rotations_down_sampled = rotations[1::frame_drop]
                 if len(positions_down_sampled) > max_time_steps:
@@ -138,15 +183,20 @@ def load_data(_path, dataset, frame_drop=1, add_mirrored=False):
                     MocapDataset.get_mpi_affective_features(positions_down_sampled)
                 for tag_index, tag_name in enumerate(relevant_tags):
                     if tag_name.lower() == 'text':
-                        data_dict[tag_data[id]][tag_name] = tag_data[tag_names.index(tag_name)]
+                        data_dict[tag_data[id]][tag_name] =\
+                            tag_data[tag_names.index(tag_name)].replace(' s ', '\'s ').replace(' t ', '\'t ')
                         text_vad = []
-                        for lexeme in data_dict[tag_data[id]][tag_name].split(' '):
+                        words = data_dict[tag_data[id]][tag_name].split(' ')
+                        for lexeme in words:
                             if lexeme.isalpha():
                                 if len(lexeme) == 1 and not (lexeme.lower() is 'a' or lexeme.lower() is 'i'):
                                     continue
                                 text_vad.append(get_vad(lexeme))
                         try:
                             data_dict[tag_data[id]][tag_name + ' VAD'] = np.stack(text_vad)
+                            get_gesture_splits(data_dict[tag_data[id]][tag_name], words,
+                                               len(data_dict[tag_data[id]]['positions']),
+                                               base_fps / frame_drop)
                         except ValueError:
                             data_dict[tag_data[id]][tag_name + ' VAD'] = np.zeros((0, 3))
                         text_length = len(data_dict[tag_data[id]][tag_name])

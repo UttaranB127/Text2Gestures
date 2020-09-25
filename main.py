@@ -116,13 +116,13 @@ any_dict_key = list(data_dict)[0]
 #             data_dict[key]['Intended emotion VAD'][2])))
 #         plt.clf()
 
-from sklearn.manifold import TSNE
-X = np.array([[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 1]])
-X_embedded = TSNE(n_components=2).fit_transform(X)
-plt.clf()
-for el in X_embedded:
-    plt.plot(el[0], el[1], marker='.', markersize=100)
-plt.show()
+# from sklearn.manifold import TSNE
+# X = np.array([[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 1]])
+# X_embedded = TSNE(n_components=2).fit_transform(X)
+# plt.clf()
+# for el in X_embedded:
+#     plt.plot(el[0], el[1], marker='.', markersize=100)
+# plt.show()
 
 affs_dim = data_dict[any_dict_key]['affective_features'].shape[-1]
 num_joints = data_dict[any_dict_key]['positions'].shape[1]
@@ -155,6 +155,28 @@ for emo_idx, emotion in enumerate(tag_categories[2]):
         if data_dict_eval[key]['Perceived category'][emo_idx] == 1:
             data_points_perceived.append(data_idx)
             data_genders_perceived.append(tag_categories[5][np.where(data_dict_eval[key]['Gender'])[0][0]])
+print('narration')
+for key in list(data_dict_eval.keys()):
+    if tag_categories[4][np.where(data_dict_eval[key]['Acting task'])[0][0]] == 'Narration':
+        print('{}\t{}\t\t{}\t{}'.format(key,
+                                      tag_categories[0][np.where(data_dict_eval[key]['Intended emotion'])[0][0]],
+                                      tag_categories[2][np.where(data_dict_eval[key]['Perceived category'])[0][0]],
+                                      data_dict_eval[key]['Text']))
+print('\n\nConversation')
+for key in list(data_dict_eval.keys()):
+    if tag_categories[4][np.where(data_dict_eval[key]['Acting task'])[0][0]] == 'Sentence':
+        print('{}\t{}\t{}\t{}'.format(key,
+                                      tag_categories[0][np.where(data_dict_eval[key]['Intended emotion'])[0][0]],
+                                      tag_categories[2][np.where(data_dict_eval[key]['Perceived category'])[0][0]],
+                                      data_dict_eval[key]['Text']))
+
+print('\n\nOthers')
+for key in list(data_dict_eval.keys()):
+    if tag_categories[4][np.where(data_dict_eval[key]['Acting task'])[0][0]] == 'Nonverbal':
+        print('{}\t{}\t{}\t{}'.format(key,
+                                      tag_categories[0][np.where(data_dict_eval[key]['Intended emotion'])[0][0]],
+                                      tag_categories[2][np.where(data_dict_eval[key]['Perceived category'])[0][0]],
+                                      data_dict_eval[key]['Text']))
 
 # trim: 17, 20, 142
 selected_female = [2, 6, 8, 12, 17, 20, 22, 27, 33, 34, 35, 37, 46, 50, 60, 62, 70,
@@ -216,7 +238,6 @@ for sl, sel_idx in enumerate(selected_all):
                 cf.write('Relieved\n')
             elif emo == 'disgust':
                 cf.write('Disgusted\n')
-
 
 pr = processor.Processor(args, data_path, data_loader, text_length, num_frames + 2,
                          affs_dim, num_joints, coords, rots_dim, tag_categories,

@@ -1,0 +1,4 @@
+Afraid
+Neutral
+Disgusted
+Joyous

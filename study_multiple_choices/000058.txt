@@ -1,0 +1,4 @@
+Amused
+Neutral
+Relieved
+Disgusted

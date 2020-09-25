@@ -320,7 +320,7 @@ class MocapDataset:
                                                     parents,
                                                     torch.from_numpy(offsets).cuda().float()).squeeze().cpu().numpy()
         orientations, _ = Quaternions(rotations[:, 0]).angle_axis()
-        return names, parents, offsets, positions, rotations
+        return names, parents, offsets, positions, rotations, 1. / frame_time
 
     @staticmethod
     def traverse_hierarchy(hierarchy, joint_names, joint_offsets, joint_parents,

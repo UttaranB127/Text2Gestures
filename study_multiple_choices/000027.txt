@@ -1,0 +1,4 @@
+Joyous
+Neutral
+Sad
+Amused

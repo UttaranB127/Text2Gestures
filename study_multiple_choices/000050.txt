@@ -1,0 +1,4 @@
+Angry
+Sad
+Afraid
+Neutral

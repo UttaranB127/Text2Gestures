@@ -1,6 +1,6 @@
 # Text2Gestures: A Transformer Network for Generating Emotive Body Gestures for Virtual Agents
 
-This is the readme to use the code for "Text2Gestures: A Transformer Network for Generating Emotive Body Gestures for Virtual Agents".
+This is the readme to use the code for "Text2Gestures: A Transformer Network for Generating Emotive Body Gestures for Virtual Agents". Our code is tested on Ubuntu 18.04 LTS with python 3.7.
 
 ## Installation
 

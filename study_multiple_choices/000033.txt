@@ -1,4 +1,4 @@
-Joyous
-Afraid
-Disgusted
 Ashamed
+Joyous
+Amused
+Relieved

@@ -1,4 +1,4 @@
-Joyous
+Disgusted
 Relieved
-Amused
-Neutral
+Joyous
+Sad

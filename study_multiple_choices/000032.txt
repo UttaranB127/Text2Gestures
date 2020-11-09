@@ -1,4 +1,4 @@
-Joyous
-Sad
-Relieved
 Surprised
+Sad
+Disgusted
+Joyous

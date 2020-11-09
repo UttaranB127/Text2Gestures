@@ -1,4 +1,4 @@
-Proud
 Afraid
-Angry
+Neutral
 Surprised
+Relieved

@@ -1,4 +1,4 @@
-Angry
-Sad
-Disgusted
 Joyous
+Sad
+Angry
+Surprised

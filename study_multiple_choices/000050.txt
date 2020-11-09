@@ -1,4 +1,4 @@
-Angry
-Sad
 Afraid
-Neutral
+Amused
+Angry
+Ashamed

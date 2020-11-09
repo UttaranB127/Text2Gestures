@@ -1,4 +1,4 @@
-Afraid
-Sad
-Joyous
+Disgusted
 Ashamed
+Neutral
+Joyous

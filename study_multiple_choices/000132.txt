@@ -1,4 +1,4 @@
-Surprised
-Neutral
-Angry
 Joyous
+Amused
+Proud
+Neutral

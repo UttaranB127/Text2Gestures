@@ -1,4 +1,4 @@
-Angry
-Joyous
 Proud
+Angry
 Disgusted
+Neutral

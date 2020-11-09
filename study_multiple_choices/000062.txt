@@ -1,4 +1,4 @@
-Afraid
-Neutral
 Disgusted
+Afraid
+Angry
 Joyous

@@ -640,7 +640,7 @@ class Processor(object):
 
     def train(self):
 
-        if self.args.load_last:
+        if self.args.load_last_best:
             model_found = self.load_model_at_epoch(epoch=self.args.start_epoch)
             if not model_found and self.args.start_epoch is not 'best':
                 print('Warning! Trying to load best known model: '.format(self.args.start_epoch), end='')
@@ -749,15 +749,14 @@ class Processor(object):
             'valid_idx': quat_valid_idx
         }
 
-
-        # MocapDataset.save_as_bvh(animation,
-        #                          dataset_name=self.dataset,
-        #                          subset_name='gt',
-        #                          include_default_pose=False)
-        # pos_pred_np = pos_pred.contiguous().view(pos_pred.shape[0],
-        #                                          pos_pred.shape[1], -1).permute(0, 2, 1).\
-        #     detach().cpu().numpy()
-        # display_animations(pos_pred_np, self.joint_parents, save=True,
-        #                    dataset_name=self.dataset,
-        #                    subset_name='epoch_' + str(self.best_loss_epoch),
-        #                    overwrite=True)
+        MocapDataset.save_as_bvh(animation,
+                                 dataset_name=self.dataset,
+                                 subset_name='gt',
+                                 include_default_pose=False)
+        pos_pred_np = pos_pred.contiguous().view(pos_pred.shape[0],
+                                                 pos_pred.shape[1], -1).permute(0, 2, 1).\
+            detach().cpu().numpy()
+        display_animations(pos_pred_np, self.joint_parents, save=True,
+                           dataset_name=self.dataset,
+                           subset_name='epoch_' + str(self.best_loss_epoch),
+                           overwrite=True)

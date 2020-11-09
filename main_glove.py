@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore")
 base_path = os.path.dirname(os.path.realpath(__file__))
 data_path = os.path.join(base_path, '../data')
 
-model_path = os.path.join(base_path, 'model')
+model_path = os.path.join(base_path, 'models')
 if not os.path.exists(model_path):
     os.mkdir(model_path)
 

@@ -1,4 +1,4 @@
-Surprised
-Proud
-Sad
 Neutral
+Proud
+Ashamed
+Relieved

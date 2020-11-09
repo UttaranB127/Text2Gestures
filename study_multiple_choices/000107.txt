@@ -1,4 +1,4 @@
-Afraid
-Amused
-Relieved
 Disgusted
+Afraid
+Surprised
+Relieved

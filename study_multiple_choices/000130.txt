@@ -1,4 +1,4 @@
-Angry
+Amused
+Neutral
 Joyous
-Proud
-Afraid
+Angry

@@ -1,4 +1,4 @@
-Joyous
-Neutral
 Ashamed
+Surprised
 Relieved
+Neutral

@@ -4,7 +4,7 @@ This is the readme to use the code for "Text2Gestures: A Transformer Network for
 
 ## Installation
 
-1. Unzip this repository.
+1. Clone this repository.
 
 We use $BASE to refer to the base directory for this project (the directory containing `main.py`). Change present working directory to $BASE.
 

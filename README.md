@@ -1,4 +1,4 @@
-# Personal Video Highlights with Active Customization
+# Text2Gestures: A Transformer Network for Generating Emotive Body Gestures for Virtual Agents
 
 This is the readme to use the code for "Text2Gestures: A Transformer Network for Generating Emotive Body Gestures for Virtual Agents".
 

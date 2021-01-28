@@ -1,6 +1,6 @@
 # Text2Gestures: A Transformer-Based Network for Generating Emotive Body Gestures for Virtual Agents
 
-This is the readme to use the official code for the paper (Text2Gestures: A Transformer Network for Generating Emotive Body Gestures for Virtual Agents)[http://arxiv.org/abs/2101.11101].
+This is the readme to use the official code for the paper [Text2Gestures: A Transformer Network for Generating Emotive Body Gestures for Virtual Agents](http://arxiv.org/abs/2101.11101).
 
 ```
 @inproceedings{bhattacharya2020text2gestures,

@@ -289,6 +289,9 @@ class Processor(object):
             if self.args.pavi_log:
                 self.io.log('train', self.meta_info['iter'], self.iter_info)
 
+    def count_parameters(self):
+        return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+
     def yield_batch(self, batch_size, dataset):
         batch_joint_offsets = torch.zeros((batch_size, self.V - 1, self.C)).cuda()
         batch_pos = torch.zeros((batch_size, self.T, self.V, self.C)).cuda()

@@ -1,6 +1,18 @@
-# Text2Gestures: A Transformer Network for Generating Emotive Body Gestures for Virtual Agents
+# Text2Gestures: A Transformer-Based Network for Generating Emotive Body Gestures for Virtual Agents
 
-This is the readme to use the code for "Text2Gestures: A Transformer Network for Generating Emotive Body Gestures for Virtual Agents". Our code is tested on Ubuntu 18.04 LTS with python 3.7.
+This is the readme to use the official code for the paper (Text2Gestures: A Transformer Network for Generating Emotive Body Gestures for Virtual Agents)[http://arxiv.org/abs/2101.11101].
+
+```
+@inproceedings{bhattacharya2020text2gestures,
+author = {Uttaran Bhattacharya and Nicholas Rewkowski and Abhishek Banerjee and Pooja Guhan and Aniket Bera and Dinesh Manocha},
+title = {Text2Gestures: A Transformer-Based Network for Generating Emotive Body Gestures for Virtual Agents},
+booktitle = {2021 {IEEE} International Conference on Virtual Reality and 3D User Interfaces},
+publisher = {{IEEE}},
+year      = {2021}
+}
+```
+
+Our code is tested on Ubuntu 18.04 LTS with python 3.7. Please add the following citation in your work if you use our code:
 
 ## Installation
 

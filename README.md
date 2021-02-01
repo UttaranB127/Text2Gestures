@@ -40,7 +40,7 @@ Note: You might need to manually uninstall and reinstall `numpy` for `torch` to 
 ## Downloading the dataset
 1. The original dataset is available for download [here](http://ebmdb.tuebingen.mpg.de/), but the samples need to be downloaded individually.
 
-We have scraped the full dataset and made it available at this anonymous link: https://drive.google.com/file/d/1BhnC-puHTh0ax8hyq00Yfny2GK_Nz--k/view?usp=sharing
+We have scraped the full dataset and made it available at [this link](https://drive.google.com/file/d/1BhnC-puHTh0ax8hyq00Yfny2GK_Nz--k/view?usp=sharing).
 
 2. If downloading from our anonymous link, unzip the downloaded file to a directorty named "data", located at the same level at the project root (i.e., the project root and the data are sibling directories).
 
@@ -56,4 +56,4 @@ For any argument not specificed in the command line, the code uses the default v
 
 On running `main.py`, the code will train the network and generate sample gestures post-training.
 
-We also provide a pretrained model inside the `models` directory. Set the command-line argument `--train` to `False` to skip training and use this model directly for evaluation. The generated samples are stored in the automatically created `render` directory. We generate all the 145 test samples by deafult and also store the corresponding ground truth samples for comparison. We have tested that the samples, stored in `.bvh` files, are compatible with blender.
+We also provide a pretrained model for download at [this link](https://drive.google.com/file/d/1-i4dPMxz38bJOU41c8jDmkiiESqZV5-W/view?usp=sharing). If using this model, save it inside `$BASE/models/mpi` directory. Set the command-line argument `--train` to `False` to skip training and use this model directly for evaluation. The generated samples are stored in the automatically created `render` directory. We generate all the 145 test samples by deafult and also store the corresponding ground truth samples for comparison. We have tested that the samples, stored in `.bvh` files, are compatible with blender.

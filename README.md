@@ -3,7 +3,7 @@
 This is the readme to use the official code for the paper [Text2Gestures: A Transformer Network for Generating Emotive Body Gestures for Virtual Agents](http://arxiv.org/abs/2101.11101). Please use the following citation if you find our work useful:
 
 ```
-@inproceedings{bhattacharya2020text2gestures,
+@inproceedings{bhattacharya2021text2gestures,
 author = {Uttaran Bhattacharya and Nicholas Rewkowski and Abhishek Banerjee and Pooja Guhan and Aniket Bera and Dinesh Manocha},
 title = {Text2Gestures: A Transformer-Based Network for Generating Emotive Body Gestures for Virtual Agents},
 booktitle = {2021 {IEEE} Conference on Virtual Reality and 3D User Interfaces (IEEE VR)},

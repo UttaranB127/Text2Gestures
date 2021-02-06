@@ -44,7 +44,7 @@ We have scraped the full dataset and made it available at [this link](https://dr
 
 2. If downloading from our anonymous link, unzip the downloaded file to a directorty named "data", located at the same level at the project root (i.e., the project root and the data are sibling directories).
 
-3. We also use the NRC-VAD lexicon to obtain the VAD representations of the words in the text. It can be downloaded from the [original web page](https://saifmohammad.com/WebPages/nrc-vad.html), or directly using [this link](https://saifmohammad.com/WebDocs/VAD/NRC-VAD-Lexicon-Aug2018Release.zip).
+3. We also use the NRC-VAD lexicon to obtain the VAD representations of the words in the text. It can be downloaded from the [original web page](https://saifmohammad.com/WebPages/nrc-vad.html), or directly using [this link](https://saifmohammad.com/WebDocs/VAD/NRC-VAD-Lexicon-Aug2018Release.zip). Unzip the downloaded zip file in the same "data" directory.
 
 ## Running the code
 Run the `main.py` file with the appropriate command line arguments.

@@ -37,12 +37,14 @@ Note: You might need to manually uninstall and reinstall `matplotlib` and `kiwis
 4. Install PyTorch following the [official instructions](https://pytorch.org/).
 Note: You might need to manually uninstall and reinstall `numpy` for `torch` to work.
 
-## Downloading the dataset
+## Downloading the datasets
 1. The original dataset is available for download [here](http://ebmdb.tuebingen.mpg.de/), but the samples need to be downloaded individually.
 
 We have scraped the full dataset and made it available at [this link](https://drive.google.com/file/d/1BhnC-puHTh0ax8hyq00Yfny2GK_Nz--k/view?usp=sharing).
 
 2. If downloading from our anonymous link, unzip the downloaded file to a directorty named "data", located at the same level at the project root (i.e., the project root and the data are sibling directories).
+
+3. We also use the NRC-VAD lexicon to obtain the VAD representations of the words in the text. It can be downloaded from the [original web page](https://saifmohammad.com/WebPages/nrc-vad.html), or directly using [this link](https://saifmohammad.com/WebDocs/VAD/NRC-VAD-Lexicon-Aug2018Release.zip).
 
 ## Running the code
 Run the `main.py` file with the appropriate command line arguments.

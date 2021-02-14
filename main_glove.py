@@ -9,7 +9,7 @@ import torch
 from torchlight.torchlight import ngpu
 
 import warnings
-warnings.filterwarnings("ignore")
+warnings.filterwarnings('ignore')
 
 
 base_path = os.path.dirname(os.path.realpath(__file__))

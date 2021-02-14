@@ -10,7 +10,7 @@ import torch
 from utils import loader, processor as processor
 from utils.visualizations import display_animations
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings('ignore')
 
 
 base_path = os.path.dirname(os.path.realpath(__file__))

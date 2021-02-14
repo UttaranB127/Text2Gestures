@@ -19,7 +19,7 @@ model_path = os.path.join(base_path, 'model')
 if not os.path.exists(model_path):
     os.mkdir(model_path)
 
-parser = argparse.ArgumentParser(description='Gait Gen')
+parser = argparse.ArgumentParser(description='Text to Emotive Gestures Generation')
 parser.add_argument('--dataset', type=str, default='mpi', metavar='D',
                     help='dataset to train or evaluate method (default: mpi)')
 parser.add_argument('--frame-drop', type=int, default=5, metavar='FD',

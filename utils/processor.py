@@ -67,7 +67,7 @@ def get_epoch_and_loss(path_to_model_files, epoch='best'):
 
 class Processor(object):
     """
-        Processor for gait generation
+        Processor for emotive gesture generation
     """
 
     def __init__(self, args, data_path, data_loader, Z, T, A, V, C, D, tag_cats,

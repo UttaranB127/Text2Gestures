@@ -13,7 +13,11 @@ year      = {2021}
 ```
 
 ## Installation
-Our code is tested on Ubuntu 18.04 LTS with python 3.7.
+Our scripts have been tested on Ubuntu 18.04 LTS with
+- Python 3.7
+- Cuda 10.2
+- cudNN 7.6.5
+- PyTorch 1.5
 
 1. Clone this repository.
 

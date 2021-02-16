@@ -12,9 +12,8 @@ year      = {2021}
 }
 ```
 
-Our code is tested on Ubuntu 18.04 LTS with python 3.7. Please add the following citation in your work if you use our code:
-
 ## Installation
+Our code is tested on Ubuntu 18.04 LTS with python 3.7.
 
 1. Clone this repository.
 

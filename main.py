@@ -142,6 +142,30 @@ age_dim = 1
 handedness_dim = data_dict[any_dict_key]['Handedness'].shape[-1]
 native_tongue_dim = data_dict[any_dict_key]['Native tongue'].shape[-1]
 
+
+plot_affs = False
+if plot_affs:
+    aff_by_emotion = [[] for _ in range(intended_emotion_dim)]
+    colors = ['r', 'g', 'b']
+    color_by_nt = [[] for _ in range(intended_emotion_dim)]
+    native_tongue = [[] for _ in range(intended_emotion_dim)]
+    for key in data_dict.keys():
+        idx = np.where(data_dict[key]['Intended emotion'])[0][0]
+        aff_by_emotion[idx].append(data_dict[key]['affective_features'])
+        color_by_nt[idx].append(colors[np.where(data_dict[key]['Native tongue'])[0][0]])
+        native_tongue[idx].append(tag_categories[8][np.where(data_dict[key]['Native tongue'])[0][0]])
+
+    for emo_idx in range(intended_emotion_dim):
+        for idx, array in enumerate(aff_by_emotion[emo_idx]):
+            plt.plot(array, color=color_by_nt[emo_idx][idx], label=native_tongue[emo_idx][idx])
+        handles, labels = plt.gca().get_legend_handles_labels()
+        labels, ids = np.unique(labels, return_index=True)
+        handles = [handles[i] for i in ids]
+        plt.legend(handles, labels, loc='best')
+        plt.title(tag_categories[0][emo_idx])
+        plt.show()
+        plt.clf()
+
 pr = processor.Processor(args, data_path, data_loader, text_length, num_frames + 2,
                          affs_dim, num_joints, coords, rots_dim, tag_categories,
                          intended_emotion_dim, intended_polarity_dim,

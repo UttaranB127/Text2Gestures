@@ -350,7 +350,7 @@ def load_data_with_glove(_path, dataset, embedding_src, frame_drop=1, add_mirror
                     if tag_data[tag_names.index(tag_to_append)] not in tag_categories[category]:
                         tag_categories[category].append(tag_data[tag_names.index(tag_to_append)])
 
-            all_texts = [[]] * len(tag_files)
+            all_texts = [[] for _ in range(len(tag_files))]
             for data_counter, tag_file in enumerate(tag_files):
                 tag_data = []
                 with open(tag_file) as f:

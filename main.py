@@ -143,28 +143,41 @@ handedness_dim = data_dict[any_dict_key]['Handedness'].shape[-1]
 native_tongue_dim = data_dict[any_dict_key]['Native tongue'].shape[-1]
 
 
-plot_affs = False
-if plot_affs:
+plot_aff = True
+if plot_aff:
+    os.makedirs('plots', exist_ok=True)
     aff_by_emotion = [[] for _ in range(intended_emotion_dim)]
+    affs_dim_to_plot = affs_dim
+    aff_max = -np.inf * np.ones(affs_dim_to_plot)
     colors = ['r', 'g', 'b']
     color_by_nt = [[] for _ in range(intended_emotion_dim)]
     native_tongue = [[] for _ in range(intended_emotion_dim)]
     for key in data_dict.keys():
+        for aff in range(affs_dim_to_plot):
+            if aff_max[aff] < np.max(data_dict[key]['affective_features'][:, aff]):
+                aff_max[aff] = np.max(data_dict[key]['affective_features'][:, aff])
         idx = np.where(data_dict[key]['Intended emotion'])[0][0]
         aff_by_emotion[idx].append(data_dict[key]['affective_features'])
         color_by_nt[idx].append(colors[np.where(data_dict[key]['Native tongue'])[0][0]])
         native_tongue[idx].append(tag_categories[8][np.where(data_dict[key]['Native tongue'])[0][0]])
 
     for emo_idx in range(intended_emotion_dim):
-        for idx, array in enumerate(aff_by_emotion[emo_idx]):
-            plt.plot(array, color=color_by_nt[emo_idx][idx], label=native_tongue[emo_idx][idx])
-        handles, labels = plt.gca().get_legend_handles_labels()
-        labels, ids = np.unique(labels, return_index=True)
-        handles = [handles[i] for i in ids]
-        plt.legend(handles, labels, loc='best')
-        plt.title(tag_categories[0][emo_idx])
-        plt.show()
-        plt.clf()
+        for aff in range(affs_dim_to_plot):
+            for idx, array in enumerate(aff_by_emotion[emo_idx]):
+                array_to_plot = np.copy(array[:, aff])
+                # if aff > 0:
+                #     array_to_plot += aff_max[aff - 1]
+                plt.plot(array_to_plot,
+                         color=color_by_nt[emo_idx][idx],
+                         label=native_tongue[emo_idx][idx])
+            handles, labels = plt.gca().get_legend_handles_labels()
+            labels, ids = np.unique(labels, return_index=True)
+            handles = [handles[i] for i in ids]
+            plt.legend(handles, labels, loc='best')
+            title = '{}_aff_{:02d}'.format(tag_categories[0][emo_idx], aff)
+            plt.title(title)
+            plt.savefig('plots/{}.png'.format(title))
+            plt.clf()
 
 pr = processor.Processor(args, data_path, data_loader, text_length, num_frames + 2,
                          affs_dim, num_joints, coords, rots_dim, tag_categories,

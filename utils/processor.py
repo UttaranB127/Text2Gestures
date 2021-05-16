@@ -614,7 +614,7 @@ class Processor(object):
     def train(self):
 
         if self.args.load_last_best:
-            model_found = self.load_model_at_epoch(epoch=self.args.start_epoch)
+            model_found = self.load_model_at_epoch(epoch='best')
             if not model_found and self.args.start_epoch is not 'best':
                 print('Warning! Trying to load best known model: '.format(self.args.start_epoch), end='')
                 model_found = self.load_model_at_epoch(epoch='best')
@@ -623,6 +623,8 @@ class Processor(object):
                 if not model_found:
                     print('Warning! Starting at epoch 0')
                     self.args.start_epoch = 0
+            else:
+                self.args.start_epoch = self.best_loss_epoch
         else:
             self.args.start_epoch = 0
         for epoch in range(self.args.start_epoch, self.args.num_epoch):

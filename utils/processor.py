@@ -544,36 +544,6 @@ class Processor(object):
             total_loss = quat_norm_loss + quat_loss + recons_loss + affs_loss
             # train_loss = quat_norm_loss + quat_loss + recons_loss + recons_derv_loss + affs_loss
 
-            # animation_pred = {
-            #     'joint_names': self.joint_names,
-            #     'joint_offsets': joint_offsets,
-            #     'joint_parents': self.joint_parents,
-            #     'positions': shifted_pos_pred,
-            #     'rotations': quat_pred
-            # }
-            # MocapDataset.save_as_bvh(animation_pred,
-            #                          dataset_name=self.dataset,
-            #                          subset_name='test')
-            # animation = {
-            #     'joint_names': self.joint_names,
-            #     'joint_offsets': joint_offsets,
-            #     'joint_parents': self.joint_parents,
-            #     'positions': shifted_pos,
-            #     'rotations': quat
-            # }
-            # MocapDataset.save_as_bvh(animation,
-            #                          dataset_name=self.dataset,
-            #                          subset_name='gt')
-            #
-            # quat_np = quat.detach().cpu().numpy()
-            # quat_pred_np = quat_pred.detach().cpu().numpy()
-            #
-            # pos_pred_np = np.swapaxes(
-            #     np.reshape(shifted_pos_pred.detach().cpu().numpy(), (shifted_pos_pred.shape[0], self.T, -1)), 2, 1)
-            # pos_np = np.swapaxes(np.reshape(shifted_pos.detach().cpu().numpy(), (shifted_pos.shape[0], self.T, -1)), 2, 1)
-            #
-            # display_animations(pos_pred_np, self.joint_parents,
-            #                    save=True, dataset_name=self.dataset, subset_name='test', overwrite=True)
         return total_loss
 
     def per_train(self):
@@ -684,7 +654,8 @@ class Processor(object):
             prefix_length = self.prefix_length
         return [var[s, :prefix_length].unsqueeze(0) for s in range(var.shape[0])]
 
-    def generate_motion(self, load_saved_model=True, samples_to_generate=10, randomized=True, epoch='best'):
+    def generate_motion(self, load_saved_model=True, samples_to_generate=10, randomized=True,
+                        epoch='best', animations_as_videos=False):
 
         if load_saved_model:
             self.load_model_at_epoch(epoch=epoch)
@@ -721,8 +692,6 @@ class Processor(object):
                                             self.V, -1)).view(quat_pred.shape[0], quat_pred.shape[1], -1)
             quat_pred = quat_pred[:, 1:]
 
-            quat_np = quat.detach().cpu().numpy()
-            quat_pred_np = quat_pred.detach().cpu().numpy()
             root_pos = torch.zeros(quat_pred.shape[0], quat_pred.shape[1], self.C).cuda()
             pos_pred = MocapDataset.forward_kinematics(quat_pred.contiguous().view(
                 quat_pred.shape[0], quat_pred.shape[1], -1, self.D), root_pos, self.joint_parents,
@@ -756,10 +725,12 @@ class Processor(object):
                                  dataset_name=self.dataset,
                                  subset_name='gt',
                                  include_default_pose=False)
-        pos_pred_np = pos_pred.contiguous().view(pos_pred.shape[0],
-                                                 pos_pred.shape[1], -1).permute(0, 2, 1).\
-            detach().cpu().numpy()
-        display_animations(pos_pred_np, self.joint_parents, save=True,
-                           dataset_name=self.dataset,
-                           subset_name='epoch_' + str(self.best_loss_epoch),
-                           overwrite=True)
+
+        if animations_as_videos:
+            pos_pred_np = pos_pred.contiguous().view(pos_pred.shape[0],
+                                                     pos_pred.shape[1], -1).permute(0, 2, 1).\
+                detach().cpu().numpy()
+            display_animations(pos_pred_np, self.joint_parents, save=True,
+                               dataset_name=self.dataset,
+                               subset_name='epoch_' + str(self.best_loss_epoch),
+                               overwrite=True)

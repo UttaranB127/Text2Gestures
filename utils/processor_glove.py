@@ -629,7 +629,8 @@ class Processor(object):
             prefix_length = self.prefix_length
         return [var[s, :prefix_length].unsqueeze(0) for s in range(var.shape[0])]
 
-    def generate_motion(self, load_saved_model=True, samples_to_generate=10, max_steps=300, randomized=True):
+    def generate_motion(self, load_saved_model=True, samples_to_generate=10, max_steps=300,
+                        randomized=True, animations_as_videos=False):
 
         if load_saved_model:
             self.load_best_model()
@@ -678,10 +679,12 @@ class Processor(object):
         MocapDataset.save_as_bvh(animation,
                                  dataset_name=self.dataset + '_glove',
                                  subset_name='gt')
-        pos_pred_np = pos_pred.contiguous().view(pos_pred.shape[0],
-                                                 pos_pred.shape[1], -1).permute(0, 2, 1).\
-            detach().cpu().numpy()
-        # display_animations(pos_pred_np, self.joint_parents, save=True,
-        #                    dataset_name=self.dataset,
-        #                    subset_name='epoch_' + str(self.best_loss_epoch),
-        #                    overwrite=True)
+
+        if animations_as_videos:
+            pos_pred_np = pos_pred.contiguous().view(pos_pred.shape[0],
+                                                     pos_pred.shape[1], -1).permute(0, 2, 1).\
+                detach().cpu().numpy()
+            display_animations(pos_pred_np, self.joint_parents, save=True,
+                               dataset_name=self.dataset,
+                               subset_name='epoch_' + str(self.best_loss_epoch),
+                               overwrite=True)

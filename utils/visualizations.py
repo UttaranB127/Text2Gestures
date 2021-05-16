@@ -73,8 +73,8 @@ def animate_joints(_i, _lines, _animations, _parents):
         for j in range(len(_parents)):
             if _parents[j] != -1:
                 _lines[j].set_data(
-                    [_animations[_i, j, 0], _animations[_i, _parents[j], 0]],
-                    [-_animations[_i, j, 2], -_animations[_i, _parents[j], 2]])
+                    np.asarray([_animations[_i, j, 0], _animations[_i, _parents[j], 0]]),
+                    np.asarray([-_animations[_i, j, 2], -_animations[_i, _parents[j], 2]]))
                 _lines[j].set_3d_properties(
                     [_animations[_i, j, 1], _animations[_i, _parents[j], 1]])
     return _lines

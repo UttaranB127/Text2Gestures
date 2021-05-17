@@ -583,7 +583,7 @@ class Processor(object):
         self.adjust_lr()
         self.adjust_tf()
 
-    def per_test(self):
+    def per_eval(self):
 
         self.model.eval()
         test_loader = self.data_loader['test']
@@ -639,7 +639,7 @@ class Processor(object):
             if (epoch % self.args.eval_interval == 0) or (
                     epoch + 1 == self.args.num_epoch):
                 self.io.print_log('Eval epoch: {}'.format(epoch))
-                self.per_test()
+                self.per_eval()
                 self.io.print_log('Done.')
 
             # save model and weights

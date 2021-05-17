@@ -170,13 +170,18 @@ class Processor(object):
         self.text_eos = np.int64(self.text_processor.vocab.stoi['<eos>'])
         num_tokens = len(self.text_processor.vocab.stoi)  # the size of vocabulary
         self.Z = Z + 2  # embedding dimension
-        num_hidden_units = 200  # the dimension of the feedforward network model in nn.TransformerEncoder
-        num_layers = 2  # the number of nn.TransformerEncoderLayer in nn.TransformerEncoder
+        num_hidden_units_enc = 200  # the dimension of the feedforward network model in nn.TransformerEncoder
+        num_hidden_units_dec = 200  # the dimension of the feedforward network model in nn.TransformerDecoder
+        num_layers_enc = 2  # the number of nn.TransformerEncoderLayer in nn.TransformerEncoder
+        num_layers_dec = 2  # the number of nn.TransformerEncoderLayer in nn.TransformerDecoder
+        num_heads_enc = 2  # the number of heads in the multi-head attention in nn.TransformerEncoder
+        num_heads_dec = 2  # the number of heads in the multi-head attention in nn.TransformerDecoder
         num_heads = 2  # the number of heads in the multi-head attention models
         dropout = 0.2  # the dropout value
         self.model = T2GNet(num_tokens, self.T - 1, self.Z, self.V * self.D, self.D, self.V - 1,
                             self.IE, self.IP, self.AT, self.G, self.AGE, self.H, self.NT,
-                            num_heads, num_hidden_units, num_layers, dropout).to(device)
+                            num_heads_enc, num_heads_dec, num_hidden_units_enc, num_hidden_units_dec,
+                            num_layers_enc, num_layers_dec, dropout).to(device)
 
         # generate
         self.generate_while_train = generate_while_train

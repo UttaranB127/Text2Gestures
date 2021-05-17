@@ -1,0 +1,2 @@
+[05.17.21|14:31:56] Training epoch: 0
+[05.17.21|14:32:33] Training epoch: 0

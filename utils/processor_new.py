@@ -445,7 +445,7 @@ class Processor(object):
                 quat_norm_loss = self.args.quat_norm_reg *\
                                  torch.mean((torch.sum(quat_pred_pre_norm ** 2, dim=-1) - 1) ** 2)
 
-                quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat[:, 1:],
+                quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat,
                                                                    quat_valid_idx[:, 1:],
                                                                    self.V, self.D,
                                                                    self.lower_body_start,
@@ -464,7 +464,7 @@ class Processor(object):
                 shifted_pos = pos - pos[:, :, 0:1]
                 shifted_pos_pred = pos_pred - pos_pred[:, :, 0:1]
 
-                recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos[:, 1:])
+                recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos)
                 # recons_loss = torch.abs(shifted_pos_pred - shifted_pos[:, 1:]).sum(-1)
                 # recons_loss = self.args.upper_body_weight * (recons_loss[:, :, :self.lower_body_start].sum(-1)) +\
                 #               recons_loss[:, :, self.lower_body_start:].sum(-1)
@@ -481,7 +481,7 @@ class Processor(object):
                 #
                 # affs_loss = torch.abs(affs[:, 1:] - affs_pred).sum(-1)
                 # affs_loss = self.args.affs_reg * torch.mean((affs_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
-                affs_loss = self.affs_loss_func(affs_pred, affs[:, 1:])
+                affs_loss = self.affs_loss_func(affs_pred, affs)
 
                 train_loss = quat_norm_loss + quat_loss + recons_loss + affs_loss
                 # train_loss = quat_norm_loss + quat_loss + recons_loss + recons_derv_loss + affs_loss
@@ -533,7 +533,7 @@ class Processor(object):
         # display_animations(pos_pred_np, self.joint_parents,
         #                    save=True, dataset_name=self.dataset, subset_name='test', overwrite=True)
 
-    def per_test(self):
+    def per_eval(self):
 
         self.model.eval()
         test_loader = self.data_loader['test']
@@ -565,7 +565,7 @@ class Processor(object):
                 quat_norm_loss = self.args.quat_norm_reg *\
                                  torch.mean((torch.sum(quat_pred_pre_norm ** 2, dim=-1) - 1) ** 2)
 
-                quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat[:, 1:],
+                quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat,
                                                                    quat_valid_idx[:, 1:],
                                                                    self.V, self.D,
                                                                    self.lower_body_start,
@@ -584,7 +584,7 @@ class Processor(object):
                 shifted_pos = pos - pos[:, :, 0:1]
                 shifted_pos_pred = pos_pred - pos_pred[:, :, 0:1]
 
-                recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos[:, 1:])
+                recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos)
                 # recons_loss = torch.abs(shifted_pos_pred[:, 1:] - shifted_pos[:, 1:]).sum(-1)
                 # recons_loss = self.args.upper_body_weight * (recons_loss[:, :, :self.lower_body_start].sum(-1)) + \
                 #               recons_loss[:, :, self.lower_body_start:].sum(-1)
@@ -601,7 +601,7 @@ class Processor(object):
                 #
                 # affs_loss = torch.abs(affs[:, 1:] - affs_pred[:, 1:]).sum(-1)
                 # affs_loss = self.args.affs_reg * torch.mean((affs_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
-                affs_loss = self.affs_loss_func(affs_pred, affs[:, 1:])
+                affs_loss = self.affs_loss_func(affs_pred, affs)
 
                 eval_loss += quat_norm_loss + quat_loss + recons_loss + affs_loss
                 # eval_loss += quat_norm_loss + quat_loss + recons_loss + recons_derv_loss + affs_loss
@@ -634,7 +634,7 @@ class Processor(object):
             if (epoch % self.args.eval_interval == 0) or (
                     epoch + 1 == self.args.num_epoch):
                 self.io.print_log('Eval epoch: {}'.format(epoch))
-                self.per_test()
+                self.per_eval()
                 self.io.print_log('Done.')
 
             # save model and weights

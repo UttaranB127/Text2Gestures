@@ -3,10 +3,6 @@ import os
 import numpy as np
 
 from utils import loader, processor_glove as processor
-from utils.visualizations import display_animations
-
-import torch
-from torchlight.torchlight import ngpu
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -31,14 +27,14 @@ parser.add_argument('--train', type=bool, default=True, metavar='T',
                     help='train the model (default: True)')
 parser.add_argument('--load-last-best', type=bool, default=True, metavar='LB',
                     help='load the most recent best model (default: True)')
-parser.add_argument('--batch-size', type=int, default=16, metavar='B',
-                    help='input batch size for training (default: 32)')
-parser.add_argument('--num-worker', type=int, default=4, metavar='W',
-                    help='input batch size for training (default: 4)')
+parser.add_argument('--load-at-epoch', type=int, default=None, metavar='LAE',
+                    help='load the model at the specified epoch (default: None)')
+parser.add_argument('--batch-size', type=int, default=8, metavar='B',
+                    help='input batch size for training (default: 8)')
 parser.add_argument('--start-epoch', type=int, default=0, metavar='SE',
                     help='starting epoch of training (default: 0)')
 parser.add_argument('--num-epoch', type=int, default=5000, metavar='NE',
-                    help='number of epochs to train (default: 1000)')
+                    help='number of epochs to train (default: 5000)')
 parser.add_argument('--optimizer', type=str, default='Adam', metavar='O',
                     help='optimizer (default: Adam)')
 parser.add_argument('--base-lr', type=float, default=1e-3, metavar='LR',
@@ -46,13 +42,13 @@ parser.add_argument('--base-lr', type=float, default=1e-3, metavar='LR',
 parser.add_argument('--base-tr', type=float, default=1., metavar='TR',
                     help='base teacher rate (default: 1.0)')
 parser.add_argument('--step', type=list, default=0.05 * np.arange(20), metavar='[S]',
-                    help='fraction of steps when learning rate will be decreased (default: [0.5, 0.75, 0.875])')
+                    help='fraction of steps when learning rate will be decreased (default: 0.05 * np.arange(20))')
 parser.add_argument('--lr-decay', type=float, default=0.999, metavar='LRD',
                     help='learning rate decay (default: 0.999)')
 parser.add_argument('--tf-decay', type=float, default=0.995, metavar='TFD',
                     help='teacher forcing ratio decay (default: 0.995)')
 parser.add_argument('--gradient-clip', type=float, default=0.5, metavar='GC',
-                    help='gradient clip threshold (default: 0.1)')
+                    help='gradient clip threshold (default: 0.5)')
 parser.add_argument('--nesterov', action='store_true', default=True,
                     help='use nesterov')
 parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
@@ -60,13 +56,13 @@ parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
 parser.add_argument('--weight-decay', type=float, default=5e-4, metavar='D',
                     help='Weight decay (default: 5e-4)')
 parser.add_argument('--upper-body-weight', type=float, default=1., metavar='UBW',
-                    help='loss weight on the upper body joint motions (default: 2.05)')
+                    help='loss weight on the upper body joint motions (default: 1.0)')
 parser.add_argument('--affs-reg', type=float, default=0.8, metavar='AR',
-                    help='regularization for affective features loss (default: 0.01)')
+                    help='regularization for affective features loss (default: 0.8)')
 parser.add_argument('--quat-norm-reg', type=float, default=0.1, metavar='QNR',
-                    help='regularization for unit norm constraint (default: 0.01)')
+                    help='regularization for unit norm constraint (default: 0.1)')
 parser.add_argument('--quat-reg', type=float, default=1.2, metavar='QR',
-                    help='regularization for quaternion loss (default: 0.01)')
+                    help='regularization for quaternion loss (default: 1.2)')
 parser.add_argument('--recons-reg', type=float, default=1.2, metavar='RCR',
                     help='regularization for reconstruction loss (default: 1.2)')
 parser.add_argument('--eval-interval', type=int, default=1, metavar='EI',
@@ -125,16 +121,7 @@ pr = processor.Processor(args, data_path, data_loader, embedding_table.shape[-1]
                          joint_names, joint_parents, word2idx, embedding_table,
                          generate_while_train=False, save_path=base_path, device=device)
 
-# idx = 1302
-# display_animations(np.swapaxes(np.reshape(
-#     np.expand_dims(data_dict[str(idx)]['positions_world'], axis=0),
-#     (1, num_frames, -1)), 2, 1), num_joints, coords, joint_parents,
-#     save=True,
-#     dataset_name=dataset, subset_name='test',
-#     save_file_names=[str(idx)],
-#     overwrite=True)
-
 if args.train:
     pr.train()
-# pr.generate_motion(data_dict_valid['0']['spline'], data_dict_valid['0'])
-pr.generate_motion(randomized=randomized)
+
+pr.generate_motion(samples_to_generate=len(data_loader['test']), randomized=randomized, animations_as_videos=False)

@@ -26,16 +26,16 @@ parser.add_argument('--frame-drop', type=int, default=2, metavar='FD',
                     help='frame down-sample rate (default: 2)')
 parser.add_argument('--add-mirrored', type=bool, default=False, metavar='AM',
                     help='perform data augmentation by mirroring all the sequences (default: False)')
-parser.add_argument('--train', type=bool, default=False, metavar='T',
+parser.add_argument('--train', type=bool, default=True, metavar='T',
                     help='train the model (default: False)')
 parser.add_argument('--use-multiple-gpus', type=bool, default=True, metavar='T',
                     help='use multiple GPUs if available (default: True)')
 parser.add_argument('--load-last-best', type=bool, default=True, metavar='LB',
                     help='load the most recent best model (default: True)')
+parser.add_argument('--load-at-epoch', type=int, default=None, metavar='LAE',
+                    help='load the model at the specified epoch (default: None)')
 parser.add_argument('--batch-size', type=int, default=8, metavar='B',
                     help='input batch size for training (default: 8)')
-parser.add_argument('--num-worker', type=int, default=4, metavar='W',
-                    help='number of threads? (default: 4)')
 parser.add_argument('--start-epoch', type=int, default=0, metavar='SE',
                     help='starting epoch of training (default: 0)')
 parser.add_argument('--num-epoch', type=int, default=5000, metavar='NE',
@@ -44,8 +44,8 @@ parser.add_argument('--num-epoch', type=int, default=5000, metavar='NE',
 #                     help='max number of past time steps to take as input to transformer decoder (default: 60)')
 parser.add_argument('--optimizer', type=str, default='Adam', metavar='O',
                     help='optimizer (default: Adam)')
-parser.add_argument('--base-lr', type=float, default=5e-3, metavar='LR',
-                    help='base learning rate (default: 5e-3)')
+parser.add_argument('--base-lr', type=float, default=1e-3, metavar='LR',
+                    help='base learning rate (default: 1e-3)')
 parser.add_argument('--base-tr', type=float, default=1., metavar='TR',
                     help='base teacher rate (default: 1.0)')
 parser.add_argument('--step', type=list, default=0.05 * np.arange(20), metavar='[S]',

@@ -37,8 +37,8 @@ parser.add_argument('--num-epoch', type=int, default=5000, metavar='NE',
                     help='number of epochs to train (default: 5000)')
 parser.add_argument('--optimizer', type=str, default='Adam', metavar='O',
                     help='optimizer (default: Adam)')
-parser.add_argument('--base-lr', type=float, default=5e-3, metavar='LR',
-                    help='base learning rate (default: 5e-3)')
+parser.add_argument('--base-lr', type=float, default=2e-3, metavar='LR',
+                    help='base learning rate (default: 2e-3)')
 parser.add_argument('--base-tr', type=float, default=1., metavar='TR',
                     help='base teacher rate (default: 1.0)')
 parser.add_argument('--step', type=list, default=0.05 * np.arange(20), metavar='[S]',

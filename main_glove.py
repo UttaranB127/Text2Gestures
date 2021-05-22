@@ -37,8 +37,8 @@ parser.add_argument('--num-epoch', type=int, default=5000, metavar='NE',
                     help='number of epochs to train (default: 5000)')
 parser.add_argument('--optimizer', type=str, default='Adam', metavar='O',
                     help='optimizer (default: Adam)')
-parser.add_argument('--base-lr', type=float, default=1e-3, metavar='LR',
-                    help='base learning rate (default: 1e-3)')
+parser.add_argument('--base-lr', type=float, default=5e-3, metavar='LR',
+                    help='base learning rate (default: 5e-3)')
 parser.add_argument('--base-tr', type=float, default=1., metavar='TR',
                     help='base teacher rate (default: 1.0)')
 parser.add_argument('--step', type=list, default=0.05 * np.arange(20), metavar='[S]',
@@ -65,6 +65,9 @@ parser.add_argument('--quat-reg', type=float, default=1.2, metavar='QR',
                     help='regularization for quaternion loss (default: 1.2)')
 parser.add_argument('--recons-reg', type=float, default=1.2, metavar='RCR',
                     help='regularization for reconstruction loss (default: 1.2)')
+parser.add_argument('--min-train-epochs', type=int, default=20, metavar='MTE',
+                    help='minimum number of training epochs after which the model'
+                         'starts to get saved (default: 20)')
 parser.add_argument('--eval-interval', type=int, default=1, metavar='EI',
                     help='interval after which model is evaluated (default: 1)')
 parser.add_argument('--log-interval', type=int, default=100, metavar='LI',
@@ -119,7 +122,7 @@ pr = processor.Processor(args, data_path, data_loader, embedding_table.shape[-1]
                          intended_emotion_dim, intended_polarity_dim,
                          acting_task_dim, gender_dim, age_dim, handedness_dim, native_tongue_dim,
                          joint_names, joint_parents, word2idx, embedding_table,
-                         generate_while_train=False, save_path=base_path, device=device)
+                         generate_while_train=True, save_path=base_path, device=device)
 
 if args.train:
     pr.train()

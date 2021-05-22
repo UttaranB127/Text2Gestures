@@ -644,7 +644,7 @@ class Processor(object):
                 self.io.print_log('Done.')
 
             # save model and weights
-            if self.loss_updated or epoch % self.args.save_interval == 0:
+            if epoch >= self.args.min_train_epochs and (self.loss_updated or epoch % self.args.save_interval == 0):
                 torch.save({'model_dict': self.model.state_dict()},
                            os.path.join(self.args.work_dir, 'epoch_{}_loss_{:.4f}_model.pth.tar'.
                                         format(epoch, self.epoch_info['mean_loss'])))

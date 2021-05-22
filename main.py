@@ -72,6 +72,9 @@ parser.add_argument('--quat-reg', type=float, default=1.2, metavar='QR',
                     help='regularization for quaternion loss (default: 1.2)')
 parser.add_argument('--recons-reg', type=float, default=1.2, metavar='RCR',
                     help='regularization for reconstruction loss (default: 1.2)')
+parser.add_argument('--min-train-epochs', type=int, default=20, metavar='MTE',
+                    help='minimum number of training epochs after which the model'
+                         'starts to get saved (default: 20)')
 parser.add_argument('--eval-interval', type=int, default=1, metavar='EI',
                     help='interval after which model is evaluated (default: 1)')
 parser.add_argument('--log-interval', type=int, default=100, metavar='LI',

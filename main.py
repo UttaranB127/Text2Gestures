@@ -27,7 +27,7 @@ parser.add_argument('--frame-drop', type=int, default=2, metavar='FD',
 parser.add_argument('--add-mirrored', type=bool, default=False, metavar='AM',
                     help='perform data augmentation by mirroring all the sequences (default: False)')
 parser.add_argument('--train', type=bool, default=True, metavar='T',
-                    help='train the model (default: False)')
+                    help='train the model (default: True)')
 parser.add_argument('--use-multiple-gpus', type=bool, default=True, metavar='T',
                     help='use multiple GPUs if available (default: True)')
 parser.add_argument('--load-last-best', type=bool, default=True, metavar='LB',
@@ -314,7 +314,7 @@ pr = processor.Processor(args, data_path, data_loader, text_length, num_frames +
                          intended_emotion_dim, intended_polarity_dim,
                          acting_task_dim, gender_dim, age_dim, handedness_dim, native_tongue_dim,
                          joint_names, joint_parents,
-                         generate_while_train=False, save_path=base_path)
+                         generate_while_train=True, save_path=base_path)
 
 if args.train:
     pr.train()

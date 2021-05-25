@@ -453,33 +453,33 @@ class Processor(object):
         with torch.autograd.detect_anomaly():
             joint_lengths = torch.norm(joint_offsets, dim=-1)
             scales, _ = torch.max(joint_lengths, dim=-1)
-            text_latent = self.model(text, perceived_emotion, perceived_polarity,
-                                     acting_task, gender, age, handedness, native_tongue,
-                                     only_encoder=True)
-            quat_pred = torch.zeros_like(quat)
-            quat_pred_pre_norm = torch.zeros_like(quat)
-            quat_in = quat_sos[:, :self.T_steps]
-            quat_valid_idx_max = torch.max(torch.sum(quat_valid_idx, dim=-1))
-            for t in range(0, self.T, self.T_steps):
-                if t > quat_valid_idx_max:
-                    break
-                quat_pred[:, t:min(self.T, t + self.T_steps)],\
-                    quat_pred_pre_norm[:, t:min(self.T, t + self.T_steps)] =\
-                    self.model(text_latent, quat=quat_in, offset_lengths= joint_lengths / scales[..., None],
-                               only_decoder=True)
-                if torch.rand(1) > self.tf:
-                    if t + self.T_steps * 2 >= self.T:
-                        quat_in = quat_pred[:, -(self.T - t - self.T_steps):].clone()
-                    else:
-                        quat_in = quat_pred[:, t:t + self.T_steps].clone()
-                else:
-                    if t + self.T_steps * 2 >= self.T:
-                        quat_in = quat[:, -(self.T - t - self.T_steps):].clone()
-                    else:
-                        quat_in = quat[:, t:min(self.T, t + self.T_steps)].clone()
-            # quat_pred, quat_pred_pre_norm = self.model(text, intended_emotion, intended_polarity,
-            #                                            acting_task, gender, age, handedness, native_tongue,
-            #                                            quat_sos[:, :-1], joint_lengths / scales[..., None])
+            # text_latent = self.model(text, perceived_emotion, perceived_polarity,
+            #                          acting_task, gender, age, handedness, native_tongue,
+            #                          only_encoder=True)
+            # quat_pred = torch.zeros_like(quat)
+            # quat_pred_pre_norm = torch.zeros_like(quat)
+            # quat_in = quat_sos[:, :self.T_steps]
+            # quat_valid_idx_max = torch.max(torch.sum(quat_valid_idx, dim=-1))
+            # for t in range(0, self.T, self.T_steps):
+            #     if t > quat_valid_idx_max:
+            #         break
+            #     quat_pred[:, t:min(self.T, t + self.T_steps)],\
+            #         quat_pred_pre_norm[:, t:min(self.T, t + self.T_steps)] =\
+            #         self.model(text_latent, quat=quat_in, offset_lengths= joint_lengths / scales[..., None],
+            #                    only_decoder=True)
+            #     if torch.rand(1) > self.tf:
+            #         if t + self.T_steps * 2 >= self.T:
+            #             quat_in = quat_pred[:, -(self.T - t - self.T_steps):].clone()
+            #         else:
+            #             quat_in = quat_pred[:, t:t + self.T_steps].clone()
+            #     else:
+            #         if t + self.T_steps * 2 >= self.T:
+            #             quat_in = quat[:, -(self.T - t - self.T_steps):].clone()
+            #         else:
+            #             quat_in = quat[:, t:min(self.T, t + self.T_steps)].clone()
+            quat_pred, quat_pred_pre_norm = self.model(text, perceived_emotion, perceived_polarity,
+                                                       acting_task, gender, age, handedness, native_tongue,
+                                                       quat_sos[:, :-1], joint_lengths / scales[..., None])
             quat_fixed = qfix(quat.contiguous().view(quat.shape[0],
                                                      quat.shape[1], -1,
                                                      self.D)).contiguous().view(quat.shape[0],
@@ -494,16 +494,16 @@ class Processor(object):
             quat_norm_loss = self.args.quat_norm_reg *\
                 torch.mean((torch.sum(quat_pred_pre_norm ** 2, dim=-1) - 1) ** 2)
 
-            quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat_fixed,
-                                                               quat_valid_idx[:, 1:],
-                                                               self.V, self.D,
-                                                               self.lower_body_start,
-                                                               self.args.upper_body_weight)
-            # quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat_fixed[:, 1:],
+            # quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat_fixed,
             #                                                    quat_valid_idx[:, 1:],
             #                                                    self.V, self.D,
             #                                                    self.lower_body_start,
             #                                                    self.args.upper_body_weight)
+            quat_loss, quat_derv_loss = losses.quat_angle_loss(quat_pred, quat_fixed[:, 1:],
+                                                               quat_valid_idx[:, 1:],
+                                                               self.V, self.D,
+                                                               self.lower_body_start,
+                                                               self.args.upper_body_weight)
             quat_loss *= self.args.quat_reg
 
             root_pos = torch.zeros(quat_pred.shape[0], quat_pred.shape[1], self.C).cuda()
@@ -518,9 +518,9 @@ class Processor(object):
             shifted_pos = pos - pos[:, :, 0:1]
             shifted_pos_pred = pos_pred - pos_pred[:, :, 0:1]
 
-            recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos)
-            recons_arms = self.recons_loss_func(shifted_pos_pred[:, :, 7:15], shifted_pos[:, :, 7:15])
-            # recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos[:, 1:])
+            # recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos)
+            # recons_arms = self.recons_loss_func(shifted_pos_pred[:, :, 7:15], shifted_pos[:, :, 7:15])
+            recons_loss = self.recons_loss_func(shifted_pos_pred, shifted_pos[:, 1:])
             # recons_arms = self.recons_loss_func(shifted_pos_pred[:, :, 7:15], shifted_pos[:, 1:, 7:15])
             # recons_loss = torch.abs(shifted_pos_pred - shifted_pos[:, 1:]).sum(-1)
             # recons_loss = self.args.upper_body_weight * (recons_loss[:, :, :self.lower_body_start].sum(-1)) +\
@@ -538,8 +538,8 @@ class Processor(object):
             #
             # affs_loss = torch.abs(affs[:, 1:] - affs_pred).sum(-1)
             # affs_loss = self.args.affs_reg * torch.mean((affs_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
-            # affs_loss = self.affs_loss_func(affs_pred, affs[:, 1:])
-            affs_loss = self.affs_loss_func(affs_pred, affs)
+            affs_loss = self.affs_loss_func(affs_pred, affs[:, 1:])
+            # affs_loss = self.affs_loss_func(affs_pred, affs)
 
             total_loss = quat_norm_loss + quat_loss + recons_loss + affs_loss
             # train_loss = quat_norm_loss + quat_loss + recons_loss + recons_derv_loss + affs_loss
@@ -650,7 +650,7 @@ class Processor(object):
                                         format(epoch, self.epoch_info['mean_loss'])))
 
                 if self.generate_while_train:
-                    self.generate_motion(load_saved_model=False, samples_to_generate=1)
+                    self.generate_motion(load_saved_model=False, samples_to_generate=1, epoch=epoch)
 
     def copy_prefix(self, var, prefix_length=None):
         if prefix_length is None:
@@ -658,8 +658,10 @@ class Processor(object):
         return [var[s, :prefix_length].unsqueeze(0) for s in range(var.shape[0])]
 
     def generate_motion(self, load_saved_model=True, samples_to_generate=10, randomized=True,
-                        epoch='best', animations_as_videos=False):
+                        epoch=None, animations_as_videos=False):
 
+        if epoch is None:
+            epoch = 'best'
         if load_saved_model:
             self.load_model_at_epoch(epoch=epoch)
         self.model.eval()

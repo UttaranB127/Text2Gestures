@@ -647,7 +647,7 @@ class Processor(object):
                                         format(epoch, self.epoch_info['mean_loss'])))
 
                 if self.generate_while_train:
-                    self.generate_motion(load_saved_model=False, samples_to_generate=1)
+                    self.generate_motion(load_saved_model=False, samples_to_generate=1, epoch=epoch)
 
     def copy_prefix(self, var, prefix_length=None):
         if prefix_length is None:
@@ -655,8 +655,10 @@ class Processor(object):
         return [var[s, :prefix_length].unsqueeze(0) for s in range(var.shape[0])]
 
     def generate_motion(self, load_saved_model=True, samples_to_generate=10,
-                        epoch='best', randomized=True, animations_as_videos=False):
+                        epoch=None, randomized=True, animations_as_videos=False):
 
+        if epoch is None:
+            epoch = 'best'
         if load_saved_model:
             self.load_model_at_epoch(epoch=epoch)
         self.model.eval()

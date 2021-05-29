@@ -702,6 +702,9 @@ class Processor(object):
                 quat_pred.shape[0], quat_pred.shape[1], -1, self.D), root_pos, self.joint_parents,
                 torch.cat((root_pos[:, 0:1], joint_offsets), dim=1).unsqueeze(1))
 
+        quat_np = quat.detach().cpu().numpy()
+        quat_pred_np = quat_pred.detach().cpu().numpy()
+
         animation_pred = {
             'joint_names': self.joint_names,
             'joint_offsets': joint_offsets,

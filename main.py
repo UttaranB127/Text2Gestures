@@ -44,8 +44,8 @@ parser.add_argument('--num-epoch', type=int, default=5000, metavar='NE',
 #                     help='max number of past time steps to take as input to transformer decoder (default: 60)')
 parser.add_argument('--optimizer', type=str, default='Adam', metavar='O',
                     help='optimizer (default: Adam)')
-parser.add_argument('--base-lr', type=float, default=1e-3, metavar='LR',
-                    help='base learning rate (default: 1e-3)')
+parser.add_argument('--base-lr', type=float, default=5e-3, metavar='LR',
+                    help='base learning rate (default: 5e-3)')
 parser.add_argument('--base-tr', type=float, default=1., metavar='TR',
                     help='base teacher rate (default: 1.0)')
 parser.add_argument('--step', type=list, default=0.05 * np.arange(20), metavar='[S]',
@@ -337,4 +337,5 @@ joint_offsets = torch.from_numpy(data_loader['test'][index]['joints_dict']['join
 # text_valid_idx = torch.zeros(self.Z)
 # text_valid_idx[:text_length] = 1
 
-pr.generate_motion(samples_to_generate=len(data_loader['test']), randomized=randomized, animations_as_videos=False)
+pr.generate_motion(samples_to_generate=len(data_loader['test']), randomized=randomized,
+                   epoch=2000, animations_as_videos=False)

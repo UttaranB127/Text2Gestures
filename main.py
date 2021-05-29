@@ -44,8 +44,8 @@ parser.add_argument('--num-epoch', type=int, default=5000, metavar='NE',
 #                     help='max number of past time steps to take as input to transformer decoder (default: 60)')
 parser.add_argument('--optimizer', type=str, default='Adam', metavar='O',
                     help='optimizer (default: Adam)')
-parser.add_argument('--base-lr', type=float, default=5e-3, metavar='LR',
-                    help='base learning rate (default: 5e-3)')
+parser.add_argument('--base-lr', type=float, default=1e-3, metavar='LR',
+                    help='base learning rate (default: 1e-3)')
 parser.add_argument('--base-tr', type=float, default=1., metavar='TR',
                     help='base teacher rate (default: 1.0)')
 parser.add_argument('--step', type=list, default=0.05 * np.arange(20), metavar='[S]',
@@ -66,8 +66,8 @@ parser.add_argument('--upper-body-weight', type=float, default=1., metavar='UBW'
                     help='loss weight on the upper body joint motions (default: 1.0)')
 parser.add_argument('--affs-reg', type=float, default=0.8, metavar='AR',
                     help='regularization for affective features loss (default: 0.8)')
-parser.add_argument('--quat-norm-reg', type=float, default=0.1, metavar='QNR',
-                    help='regularization for unit norm constraint (default: 0.1)')
+parser.add_argument('--quat-norm-reg', type=float, default=1.2, metavar='QNR',
+                    help='regularization for unit norm constraint (default: 1.2)')
 parser.add_argument('--quat-reg', type=float, default=1.2, metavar='QR',
                     help='regularization for quaternion loss (default: 1.2)')
 parser.add_argument('--recons-reg', type=float, default=1.2, metavar='RCR',

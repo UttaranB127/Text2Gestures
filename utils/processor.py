@@ -512,8 +512,8 @@ class Processor(object):
                 torch.cat((root_pos[:, 0:1], joint_offsets), dim=1).unsqueeze(1))
             affs_pred = MocapDataset.get_mpi_affective_features(pos_pred)
 
-            # row_sums = quat_valid_idx.sum(1, keepdim=True) * self.D * self.V
-            # row_sums[row_sums == 0.] = 1.
+            row_sums = quat_valid_idx.sum(1, keepdim=True) * self.D * self.V
+            row_sums[row_sums == 0.] = 1.
 
             shifted_pos = pos - pos[:, :, 0:1]
             shifted_pos_pred = pos_pred - pos_pred[:, :, 0:1]
@@ -525,8 +525,8 @@ class Processor(object):
             # recons_loss = torch.abs(shifted_pos_pred - shifted_pos[:, 1:]).sum(-1)
             # recons_loss = self.args.upper_body_weight * (recons_loss[:, :, :self.lower_body_start].sum(-1)) +\
             #               recons_loss[:, :, self.lower_body_start:].sum(-1)
-            # recons_loss = self.args.recons_reg *\
-            #               torch.mean((recons_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
+            recons_loss = self.args.recons_reg *\
+                torch.mean((recons_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
             #
             # recons_derv_loss = torch.abs(shifted_pos_pred[:, 1:] - shifted_pos_pred[:, :-1] -
             #                              shifted_pos[:, 2:] + shifted_pos[:, 1:-1]).sum(-1)
@@ -537,8 +537,8 @@ class Processor(object):
             #                    torch.mean((recons_derv_loss * quat_valid_idx[:, 2:]).sum(-1) / row_sums)
             #
             # affs_loss = torch.abs(affs[:, 1:] - affs_pred).sum(-1)
-            # affs_loss = self.args.affs_reg * torch.mean((affs_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
             affs_loss = self.affs_loss_func(affs_pred, affs[:, 1:])
+            affs_loss = self.args.affs_reg * torch.mean((affs_loss * quat_valid_idx[:, 1:]).sum(-1) / row_sums)
             # affs_loss = self.affs_loss_func(affs_pred, affs)
 
             total_loss = quat_norm_loss + quat_loss + recons_loss + affs_loss

@@ -1,5 +1,12 @@
 # Text2Gestures: A Transformer-Based Network for Generating Emotive Body Gestures for Virtual Agents
 
+---
+**Deprecation Warning**
+
+This network has known issues on stability during convergence while training. A newer and stabler implementation is available at [UttaranB127/speech2affective_gestures](https://github.com/UttaranB127/speech2affective_gestures).
+
+---
+
 This is the readme to use the official code for the paper [Text2Gestures: A Transformer Network for Generating Emotive Body Gestures for Virtual Agents](http://arxiv.org/abs/2101.11101). Please use the following citation if you find our work useful:
 
 ```
